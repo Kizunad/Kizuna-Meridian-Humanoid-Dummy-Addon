@@ -1,0 +1,144 @@
+plugins { id 'fabric-loom' }
+
+description = '训练假人实体、物品、命令、击打报告推送与客户端 HUD。'
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+
+def sibling = { String key -> rootProject.file(rootProject.siblingArtifacts[key]) }
+
+dependencies {
+    minecraft 'com.mojang:minecraft:1.20.1'
+    mappings 'net.fabricmc:yarn:1.20.1+build.10:v2'
+    modImplementation 'net.fabricmc:fabric-loader:0.16.10'
+    modImplementation 'net.fabricmc.fabric-api:fabric-api:0.92.3+1.20.1'
+
+    implementation project(':server')
+    include project(':server')
+    include project(':shared')
+    include implementation('com.google.protobuf:protobuf-java:4.36.2')
+    // 必装的类人身体宿主与原版伤害接线；物种注册、出生与伤害观察都走它们的公开 API。
+    modImplementation files(sibling('humanoidFabric'), sibling('damageFabric'))
+    // Framework 协议与 Threatening 纯规则在安装时由宿主 JAR 嵌套提供，这里不再重复嵌套。
+    implementation files(sibling('frameworkServer'), sibling('humanoidServer'))
+    // 观察事件引用 Damage 的提交回执类型；运行时由必装 Damage 模组提供。
+    compileOnly files(sibling('damageServer'))
+    testImplementation 'junit:junit:4.13.2'
+}
+
+test { useJUnit() }
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') { expand version: project.version }
+}
+
+// Loom 只按坐标复用 modprocessing 里的嵌套 JAR，SNAPSHOT 坐标不变时会把旧 server/shared JAR 打进发布 JAR；
+// 每次打发布 JAR 前清掉该缓存，让 include 的 JAR 按当前产物重新生成。
+def clearNestedJarCache = tasks.register('clearNestedJarCache', Delete) {
+    delete layout.buildDirectory.dir('loom-cache/temp/modprocessing')
+}
+tasks.named('remapJar') {
+    dependsOn clearNestedJarCache
+}
+
+// 开发运行沿用 Meridian 统一完整装配；Framework 与 TOML 库在安装 JAR 中是嵌套库，开发时显式补齐。
+apply from: '../../Kizuna-Meridian-Mod-Framework/scripts/full-assembly.gradle'
+dependencies {
+    localRuntime 'org.tomlj:tomlj:1.1.1'
+    localRuntime 'org.antlr:antlr4-runtime:4.11.1'
+    localRuntime files('../../Kizuna-Meridian-Human-Addon/client/build/libs/kizuna-meridian-human-addon-client-0.1.0-SNAPSHOT.jar')
+}
+
+loom {
+    mods {
+        meridian_humanoid_dummy { sourceSet sourceSets.main }
+    }
+    runs {
+        client { runDir 'build/playtest' }
+        server { runDir 'build/server' }
+    }
+}
+
+sourceSets {
+    gametest {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+    clientTest {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+}
+
+dependencies {
+    // GameTest 直接读取 Damage 观察事件与 Framework 快照。
+    gametestCompileOnly files(sibling('damageServer'))
+    gametestRuntimeOnly project(':server')
+}
+
+loom {
+    mods {
+        meridian_humanoid_dummy_test { sourceSet sourceSets.gametest }
+        meridian_humanoid_dummy_client_test { sourceSet sourceSets.clientTest }
+    }
+    runs {
+        gametest {
+            server()
+            name '训练假人 GameTest'
+            source sourceSets.gametest
+            runDir 'build/gametest'
+            vmArg '-Dfabric-api.gametest'
+            vmArg '-Dfabric-api.gametest.report-file=build/gametest-results.xml'
+        }
+        clientTest {
+            client()
+            name '训练假人 HUD 客户端测试'
+            source sourceSets.clientTest
+            runDir 'build/clienttest'
+            programArgs '--quickPlaySingleplayer', 'dummy-hud-test', '--width', '1280', '--height', '960'
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.named('runGametest') {
+        doFirst {
+            // 平坦世界供客户端测试复用，固定端口与视距避免占用用户环境。
+            def runDirectory = file('build/gametest')
+            runDirectory.mkdirs()
+            new File(runDirectory, 'eula.txt').text = 'eula=true\n'
+            new File(runDirectory, 'server.properties').text = '''online-mode=false
+server-ip=127.0.0.1
+server-port=0
+level-type=flat
+generate-structures=false
+view-distance=2
+simulation-distance=2
+'''
+        }
+    }
+}
+
+tasks.register('prepareClientTestWorld', Copy) {
+    from layout.buildDirectory.dir('gametest/world')
+    into layout.buildDirectory.dir('clienttest/saves/dummy-hud-test')
+    exclude 'session.lock'
+}
+tasks.named('runClientTest') {
+    dependsOn tasks.named('prepareClientTestWorld')
+    def report = layout.buildDirectory.file('clienttest-results.txt')
+    def options = layout.buildDirectory.file('clienttest/options.txt')
+    doFirst {
+        report.get().asFile.text = 'success=false\n'
+        // 以简体中文启动，HUD 文案与 Human 的中文部位名同一语言；3465 是 1.20.1 的数据版本，免得选项走升级。
+        options.get().asFile.parentFile.mkdirs()
+        options.get().asFile.text = 'version:3465\nlang:zh_cn\n'
+    }
+    doLast {
+        if (!report.get().asFile.text.startsWith('success=true')) {
+            throw new GradleException("HUD 客户端验收失败：${report.get().asFile}")
+        }
+    }
+}

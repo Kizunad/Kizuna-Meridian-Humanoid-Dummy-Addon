@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package kizuna.meridian.dummy.v1;
+
+option java_package = "dev.kizuna.meridian.dummy.protocol.pb";
+option java_outer_classname = "DummyMessages";
+
+// 服务端发给造成这次伤害的玩家；全部数值取自 Damage 提交后的固定回执与前后快照。
+message HitReport {
+  int32 protocol_version = 1; // 当前为 1。
+  string part_name = 2; // 命中部位的 Human 显示名，1..32 个字符。
+  double part_hp = 3; // 命中后剩余 HP，0..part_max_hp。
+  double part_max_hp = 4; // 命中部位上限，正数。
+  double part_loss = 5; // 本次命中部位实际扣除的 HP，0..part_max_hp。
+  DamageKind damage_kind = 6; // 不能为 UNSPECIFIED。
+  double vanilla_dose = 7; // Damage 日志中的「原版」剂量：肌肉系数、附效与护甲之前。
+  double dose_after_armor = 8; // Damage 日志中的「护甲后」剂量：进入身体结算的剂量。
+  repeated Injury injuries = 9; // 0..32 条，按扣除量从大到小；超出时只保留扣除最多的 32 条。
+  repeated PartChange part_changes = 10; // 0..32 条，只列状态发生变化的部位。
+}
+
+message Injury {
+  string name = 1; // 组织、器官或蔓延部位的显示名，1..32 个字符。
+  double hp = 2; // 本次实际扣除，正数。
+  InjuryModule module = 3; // 不能为 UNSPECIFIED。
+  bool spillover = 4; // 来自命中部位溢出后的蔓延。
+}
+
+message PartChange {
+  string part_name = 1; // 1..32 个字符。
+  PartCondition before = 2;
+  PartCondition after = 3; // 必须与 before 不同，且都不能为 UNSPECIFIED。
+}
+
+enum InjuryModule {
+  INJURY_MODULE_UNSPECIFIED = 0;
+  PART = 1;
+  TISSUE = 2;
+  ORGAN = 3;
+}
+
+// 部位 HP 大于 0 为可用，归零为失能。
+enum PartCondition {
+  PART_CONDITION_UNSPECIFIED = 0;
+  USABLE = 1;
+  DISABLED = 2;
+}
+
+// 与 Framework 伤害机制同名同序；客户端按小写名称查本地化文本。
+enum DamageKind {
+  DAMAGE_KIND_UNSPECIFIED = 0;
+  BLUNT = 1;
+  CUTTING = 2;
+  PIERCING = 3;
+  HEAT = 4;
+  COLD = 5;
+  ELECTRIC = 6;
+  CORROSIVE = 7;
+  TOXIC = 8;
+  CUSTOM = 9;
+}

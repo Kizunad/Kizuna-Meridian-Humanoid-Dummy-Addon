@@ -1,0 +1,16 @@
+# 训练假人在 Threatening 物种表中的定义；由本模组初始化时登记。
+# 自然出生不抽真炁，默认档位只在放置、命令生成时使用；死亡规则 never 让身体打空也不进入死态。
+# brain = false：Threatening 的类人大脑不接管假人，它不寻路、不撤退，只站着挨打。
+[species."meridian_humanoid_dummy:dummy"]
+template = "human:adult"
+default_tier = "wandering_qi"
+death_rule = "never"
+brain = false
+
+[species."meridian_humanoid_dummy:dummy".profile]
+true_qi_base_probability = 0.0
+opening_count_multiplier = 1.0
+fill_multiplier = 1.0
+wall_fill_multiplier = 1.0
+arm_opening_weight = 1.0
+foot_opening_weight = 1.0

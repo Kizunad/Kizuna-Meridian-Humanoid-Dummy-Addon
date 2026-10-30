@@ -1,0 +1,4 @@
+apply plugin: 'com.google.protobuf'
+description = '训练假人击打报告的独立 Protobuf 契约。'
+dependencies { api 'com.google.protobuf:protobuf-java:4.36.2' }
+protobuf { protoc { artifact = 'com.google.protobuf:protoc:4.36.2' } }

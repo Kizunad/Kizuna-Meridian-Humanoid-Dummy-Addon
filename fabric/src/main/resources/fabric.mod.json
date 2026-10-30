@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "meridian_humanoid_dummy",
+  "version": "${version}",
+  "name": "Kizuna's Meridian Humanoid Dummy",
+  "description": "带真实经脉身体的类人训练假人与击打 HUD",
+  "authors": ["Kizunad"],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dev.kizuna.meridian.dummy.fabric.DummyFabric"],
+    "client": ["dev.kizuna.meridian.dummy.fabric.client.DummyClient"]
+  },
+  "depends": {
+    "java": ">=17",
+    "minecraft": "1.20.1",
+    "fabricloader": ">=0.16.10",
+    "fabric-api": "*",
+    "kizuna_players_animation_mobs": "*",
+    "meridian_human_host": "*",
+    "meridian_humanoid_host": "*",
+    "meridian_vanilla_damage": "*"
+  }
+}

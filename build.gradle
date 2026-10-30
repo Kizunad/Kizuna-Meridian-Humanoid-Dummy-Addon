@@ -1,0 +1,64 @@
+plugins {
+    id 'base'
+    id 'fabric-loom' version '1.6-SNAPSHOT' apply false
+    id 'com.google.protobuf' version '0.9.6' apply false
+}
+
+allprojects {
+    group = 'dev.kizuna.meridian.dummy'
+    version = '0.1.0-SNAPSHOT'
+}
+
+// 相邻仓库的安装产物，各子工程按需声明为编译或运行依赖。
+ext.siblingArtifacts = [
+        frameworkServer: '../Kizuna-Meridian-Mod-Framework/server/build/libs/kizuna-meridian-mod-framework-server-0.1.0-SNAPSHOT.jar',
+        humanoidServer: '../Kizuna-Meridian-Vanilla-Humanoid-Threatening/server/build/libs/kizuna-meridian-vanilla-humanoid-threatening-server-0.1.0-SNAPSHOT.jar',
+        humanoidFabric: '../Kizuna-Meridian-Vanilla-Humanoid-Threatening/fabric/build/libs/kizuna-meridian-vanilla-humanoid-threatening-fabric-0.1.0-SNAPSHOT.jar',
+        damageServer: '../Kizuna-Meridian-Vanilla-Damage-Addon/server/build/libs/kizuna-meridian-vanilla-damage-addon-server-0.1.0-SNAPSHOT.jar',
+        damageFabric: '../Kizuna-Meridian-Vanilla-Damage-Addon/fabric/build/libs/kizuna-meridian-vanilla-damage-addon-fabric-0.1.0-SNAPSHOT.jar'
+]
+
+subprojects {
+    apply plugin: 'java-library'
+
+    repositories {
+        mavenCentral()
+    }
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+        withSourcesJar()
+    }
+    base.archivesName = "${rootProject.name}-${project.name}"
+    tasks.withType(JavaCompile).configureEach {
+        options.release = 17
+        options.encoding = 'UTF-8'
+    }
+    tasks.withType(JavaExec).configureEach {
+        javaLauncher = javaToolchains.launcherFor {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+    tasks.withType(Jar).configureEach {
+        from(rootProject.files('LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md'))
+    }
+}
+
+tasks.named('assemble') {
+    dependsOn ':shared:assemble', ':server:assemble', ':fabric:assemble'
+}
+tasks.named('check') {
+    dependsOn ':shared:check', ':server:check', ':fabric:check', 'checkDocs'
+}
+tasks.named('clean') {
+    dependsOn ':shared:clean', ':server:clean', ':fabric:clean'
+}
+tasks.register('test') {
+    group = 'verification'
+    dependsOn ':shared:test', ':server:test', ':fabric:test'
+}
+tasks.register('checkDocs', Exec) {
+    group = 'verification'
+    commandLine 'python3', 'scripts/check_docs.py'
+}

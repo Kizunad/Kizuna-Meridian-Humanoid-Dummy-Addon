@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "meridian_humanoid_dummy:item/dummy"
+  }
+}

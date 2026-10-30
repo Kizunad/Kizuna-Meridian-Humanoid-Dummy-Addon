@@ -1,0 +1,13 @@
+pluginManagement {
+    repositories {
+        maven { url = 'https://maven.fabricmc.net/' }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'kizuna-meridian-humanoid-dummy-addon'
+include 'shared', 'server', 'fabric'
+
+// 相邻仓库只通过已构建的安装 JAR 接入，不启用 composite build，
+// 构建本仓库不会改写 Framework、Threatening 或 Damage 的输出目录。

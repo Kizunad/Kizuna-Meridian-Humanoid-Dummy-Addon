@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "meridian_humanoid_dummy_client_test",
+  "version": "1.0.0",
+  "name": "训练假人 HUD 客户端测试",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.kizuna.meridian.dummy.fabric.client.DummyHudClientTest"]
+  },
+  "depends": {
+    "meridian_humanoid_dummy": "*"
+  }
+}
