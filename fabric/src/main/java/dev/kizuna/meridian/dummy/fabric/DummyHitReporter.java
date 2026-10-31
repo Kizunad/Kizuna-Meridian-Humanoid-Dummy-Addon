@@ -8,9 +8,7 @@ import dev.kizuna.meridian.protocol.pb.BodyMessages.HealthTarget;
 import dev.kizuna.meridian.protocol.pb.HealthMessages.DamageResolution;
 import dev.kizuna.meridian.vanilla.VanillaDamageBridge;
 import dev.kizuna.meridian.vanilla.fabric.VanillaDamageFabric;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 
 /** Damage 观察方：玩家打到假人时把提交后的事实整理成报告，只发给攻击者本人。 */
@@ -20,6 +18,7 @@ final class DummyHitReporter {
     }
 
     static void onDamage(VanillaDamageFabric.DamageEvent event) {
+        // 报告事件先于发送，不受客户端是否登记通道影响；发出的载荷是整份报告字节。
         if (!(event.target() instanceof DummyEntity dummy)) {
             return;
         }
@@ -28,12 +27,10 @@ final class DummyHitReporter {
         }
         HitReport report = HitReportBuilder.build(facts(event));
         DummyHitEvents.REPORTED.invoker().onReported(attacker, dummy, report);
-        if (!ServerPlayNetworking.canSend(attacker, DummyChannels.HIT_REPORT)) {
+        if (!ServerPlayNetworking.canSend(attacker, HitReportPayload.TYPE)) {
             return;
         }
-        FriendlyByteBuf buffer = PacketByteBufs.create();
-        buffer.writeBytes(HitReports.encode(report));
-        ServerPlayNetworking.send(attacker, DummyChannels.HIT_REPORT, buffer);
+        ServerPlayNetworking.send(attacker, HitReportPayload.of(HitReports.encode(report)));
     }
 
     private static HitFacts facts(VanillaDamageFabric.DamageEvent event) {

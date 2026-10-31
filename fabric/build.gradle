@@ -1,4 +1,4 @@
-plugins { id 'fabric-loom' }
+plugins { id 'net.fabricmc.fabric-loom' }
 
 description = '训练假人实体、物品、命令、击打报告推送与客户端 HUD。'
 
@@ -7,10 +7,10 @@ repositories {
 }
 
 dependencies {
+    // 26.x 不混淆：直接用官方名编译，没有映射，模组依赖也不经重映射。
     minecraft libs.minecraft
-    mappings loom.officialMojangMappings()
-    modImplementation libs.fabric.loader
-    modImplementation libs.fabric.api
+    implementation libs.fabric.loader
+    implementation libs.fabric.api
 
     implementation project(':server')
     include project(':server')
@@ -20,10 +20,10 @@ dependencies {
     include libs.protobuf.java
     // 必装的类人身体宿主与原版伤害接线；物种注册、出生与伤害观察都走它们的公开 API。
     // 相邻仓库在 settings 中以源码组合，与原先读单个 JAR 一致只取各模块本身。
-    modImplementation('dev.kizuna.meridian.humanoid:fabric') { transitive = false }
-    modImplementation('dev.kizuna.meridian.vanilla:fabric') { transitive = false }
+    implementation('dev.kizuna.meridian.humanoid:fabric') { transitive = false }
+    implementation('dev.kizuna.meridian.vanilla:fabric') { transitive = false }
     // 换档命令挂在 Framework 的 /meridian 注册点；Framework 是必装模组，运行时由完整装配提供。
-    modCompileOnly('dev.kizuna.meridian:fabric') { transitive = false }
+    compileOnly('dev.kizuna.meridian:fabric') { transitive = false }
     // Framework 协议与 Threatening 纯规则在安装时由宿主 JAR 嵌套提供，这里不再重复嵌套。
     implementation('local.meridian:server') { transitive = false }
     implementation('dev.kizuna.meridian.humanoid:server') { transitive = false }
@@ -129,9 +129,9 @@ tasks.named('runClientTest') {
     def options = layout.buildDirectory.file('clienttest/options.txt')
     doFirst {
         report.get().asFile.text = 'success=false\n'
-        // 以简体中文启动，HUD 文案与 Human 的中文部位名同一语言；3465 是 1.20.1 的数据版本，免得选项走升级。
+        // 以简体中文启动，HUD 文案与 Human 的中文部位名同一语言；4903 是 26.2 的数据版本，免得选项走升级。
         options.get().asFile.parentFile.mkdirs()
-        options.get().asFile.text = 'version:3465\nlang:zh_cn\n'
+        options.get().asFile.text = 'version:4903\nlang:zh_cn\n'
     }
     doLast {
         if (!report.get().asFile.text.startsWith('success=true')) {

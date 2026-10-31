@@ -1,7 +1,9 @@
 package dev.kizuna.meridian.dummy.fabric;
 
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
@@ -31,8 +33,9 @@ public final class DummyEntity extends Mob {
     }
 
     @Override
-    public void knockback(double strength, double x, double z) {
-        // 击退被整体忽略；推挤走的是碰撞路径，不经过这里。
+    public void knockback(double power, double xd, double zd, DamageSource source, float damage,
+                          boolean comesFromEffect) {
+        // 击退被整体忽略；推挤走的是碰撞路径，不经过这里。26.2 的各击退入口最终都汇到这一个重载。
     }
 
     @Override
@@ -52,8 +55,8 @@ public final class DummyEntity extends Mob {
     }
 
     @Override
-    public void kill() {
-        // /kill 直接移除假人，不走伤害结算，也不产生死亡事件。
+    public void kill(ServerLevel level) {
+        // /kill 直接移除假人，不走伤害结算，也不产生死亡事件；26.2 的 kill 带上所在世界，行为不变。
         discard();
     }
 
@@ -73,7 +76,8 @@ public final class DummyEntity extends Mob {
             player.getInventory().placeItemBackInInventory(new ItemStack(DummyContent.item()));
             discard();
         }
-        return InteractionResult.sidedSuccess(world.isClientSide());
+        // 26.2 的 SUCCESS 只在客户端挥手、服务端不挥手，等同旧版按端区分的成功。
+        return InteractionResult.SUCCESS;
     }
 
     @Override

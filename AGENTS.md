@@ -1,6 +1,6 @@
 # 仓库协作约定
 
-- 本仓库只收 Minecraft Java 版 1.20.1 的类人训练假人：实体、物品、命令与击打 HUD。身体模板来自 Human，身体生成与宿主绑定归 Vanilla-Humanoid-Threatening，伤害结算归 Vanilla-Damage，权威身体状态归 Framework。
+- 本仓库只收 Minecraft Java 版 26.2 的类人训练假人：实体、物品、命令与击打 HUD。身体模板来自 Human，身体生成与宿主绑定归 Vanilla-Humanoid-Threatening，伤害结算归 Vanilla-Damage，权威身体状态归 Framework。
 - Meridian 各附属按完整装配运行；不得添加缺少必需附属时的替代路径、降级或可选依赖判断。
 - 不复制宿主或结算代码：物种经 Threatening 的公开数据驱动注册点接入，伤害只订阅 Damage 提交后的观察事件，重置走 Framework 健康事务。
 - `shared/` 只放 Protobuf 契约；`server/` 保存与 Minecraft 无关的报告构建与有界校验；`fabric/` 负责实体、物品、命令、网络与客户端 HUD。

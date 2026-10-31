@@ -1,11 +1,13 @@
 # 构建与验证
 
-Java 17、Gradle 8.14.6 wrapper、Loom 1.13.6，版本取自 Framework 的版本目录。Framework、Threatening 与 Damage 在 `settings.gradle` 中按
+Minecraft 26.2、Java 25、Gradle 9.8.0 wrapper、Loom 1.19.3（26.x 不混淆，不重映射），版本取自 Framework 的版本目录。
+Framework、Threatening 与 Damage 在 `settings.gradle` 中按
 Framework 统一装配清单以源码组合，编译与开发运行使用其当前输出；客户端测试所需的 Human 客户端库按清单读已构建的 JAR。
 
 ```bash
 ./gradlew test build :fabric:runGametest
-xvfb-run -a -s "-screen 0 1280x960x24" ./gradlew :fabric:runClientTest
+env -u DISPLAY -u WAYLAND_DISPLAY LIBGL_ALWAYS_SOFTWARE=1 JAVA_TOOL_OPTIONS=-Dfabric.noGui=true \
+  xvfb-run -a -s "-screen 0 1280x960x24" ./gradlew :fabric:runClientTest
 python3 scripts/check_docs.py
 git diff --check
 ```
@@ -76,3 +78,28 @@ git diff --check
 
 结果：JUnit 11/11（`HitReportsTest` 9、`HitAmountsTest` 2）；GameTest 10/10，加载 68 个模组；
 clientTest `success=true`，加载 87 个模组，命中胸部，HUD 3 行；文档检查通过（6 个页面）。
+
+## 2026-11-01：S3 迁到 Minecraft 26.2
+
+Minecraft 26.2、Java 25、Gradle 9.8.0 wrapper、Loom 1.19.3（26.x 不混淆，不重映射），依赖改为普通 `implementation`/`compileOnly`。
+正式代码只做 26.2 改名与接口替换，不改行为：
+
+- 实体类型改用原版 `EntityType.Builder`（Fabric 的实体类型构建器在 26.x 并入原版）：杂项类别、玩家尺寸、追踪距离 10 区块不变；
+  原版构建器只给可缩放尺寸，假人不是幼体，1.20.1 也没有体型属性，所以与原先的固定尺寸相同。
+  物品带注册键，补 26.x 必需的 `items/dummy.json`；创造栏改 `FabricCreativeModeTab`；渲染器登记改原版 `EntityRenderers.register`。
+- 击打报告改为 `HitReportPayload`：通道 ID 与编解码只定义一份，线格式仍是占满包体的 `HitReport` 字节；
+  超过 16 KiB 时读包阶段跳过不复制，客户端记日志后丢弃，与原先先拒收再复制一致。
+- 渲染器改 `HumanoidRenderState`，盔甲层改用原版玩家盔甲模型组；HUD 由 `HudRenderCallback` 改为 `HudElementRegistry.addLast`，
+  文字改 `GuiGraphicsExtractor.text`（同样默认带阴影）。
+- 击退忽略改覆写 26.2 的六参数 `knockback`（各击退入口最终都汇到它）；`kill` 带上所在世界，仍直接移除。
+
+GameTest 改用 Fabric `@GameTest`，各例显式写 1.20.1 默认的 100 tick（26.2 默认只有 20 tick）；指令返回值改经来源结果回调取得，
+权限 2/1 改 `GAMEMASTER`/`MODERATOR`，模拟玩家改 `makeMockPlayer(GameType.SURVIVAL)`。
+客户端测试的截图改为 26.2 的异步回调（等待回调期间停在 `CAPTURING`），HUD 显隐与界面改经 `client.gui`，
+`options.txt` 预置的数据版本由 1.20.1 的 3465 改为 26.2 的 4903。
+
+命令：`./gradlew test build :fabric:compileGametestJava :fabric:compileClientTestJava`；
+`python3 scripts/check_docs.py`；`git diff --check`。
+
+结果：JUnit 11/11（`HitReportsTest` 9、`HitAmountsTest` 2），GameTest 与客户端测试源集编译通过，文档检查通过（6 个页面）。
+GameTest 与客户端测试尚未运行：完整装配里还有附属没迁完，迁完后用正式完整装配统一跑。

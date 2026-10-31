@@ -13,7 +13,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 
@@ -38,7 +38,7 @@ final class DummyHud {
     private static final int PANEL_RGB = 0x1C1C1C;
     private static final float PANEL_OPACITY = 0.6F;
     private static final int MAX_ALPHA = 255;
-    /** Font 把低于 4 的 alpha 当作不透明，渐隐到底时停在这里。 */
+    /** 1.20.1 的 Font 把低于 4 的 alpha 当作不透明，渐隐到底时停在这里；26.2 照样停在这里，观感不变。 */
     private static final int MIN_TEXT_ALPHA = 4;
     private static final int ALPHA_SHIFT = 24;
     private static final String KEY = "hud." + DummyFabric.MOD_ID + ".";
@@ -82,7 +82,8 @@ final class DummyHud {
         return blocks(now).stream().mapToInt(block -> block.lines().size()).sum();
     }
 
-    void render(GuiGraphics context, Font textRenderer, long now) {
+    void render(GuiGraphicsExtractor context, Font textRenderer, long now) {
+        // 26.2 的 HUD 层交给提取器登记绘制；各块自上而下排列。
         int top = MARGIN;
         for (HudBlock block : blocks(now)) {
             int bottom = drawBlock(context, textRenderer, block, top);
@@ -90,8 +91,8 @@ final class DummyHud {
         }
     }
 
-    private static int drawBlock(GuiGraphics context, Font textRenderer, HudBlock block, int top) {
-        // 每块右对齐，宽度取本块最长一行。
+    private static int drawBlock(GuiGraphicsExtractor context, Font textRenderer, HudBlock block, int top) {
+        // 每块右对齐，宽度取本块最长一行；文字与旧版 drawString 一样默认带阴影。
         int textWidth = 0;
         for (HudLine line : block.lines()) {
             textWidth = Math.max(textWidth, textRenderer.width(line.text()));
@@ -103,7 +104,7 @@ final class DummyHud {
         int y = top + PADDING;
         for (HudLine line : block.lines()) {
             int argb = color(line.rgb(), block.opacity());
-            context.drawString(textRenderer, line.text(), left + PADDING, y, argb);
+            context.text(textRenderer, line.text(), left + PADDING, y, argb);
             y += LINE_HEIGHT;
         }
         return bottom;

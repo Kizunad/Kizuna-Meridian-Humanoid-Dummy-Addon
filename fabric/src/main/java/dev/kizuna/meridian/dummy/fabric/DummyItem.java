@@ -32,6 +32,7 @@ final class DummyItem extends Item {
     @Override
     public InteractionResult useOn(UseOnContext context) {
         // 落点沿用方块放置规则：可替换方块就地放，否则放到点击面外侧；空间被占时不放。
+        // 失败提示走动作栏；服务端成功返回 CONSUME（不挥手），客户端返回 SUCCESS，与 1.20.1 相同。
         Level world = context.getLevel();
         if (!(world instanceof ServerLevel serverWorld)) {
             return InteractionResult.SUCCESS;
@@ -49,7 +50,7 @@ final class DummyItem extends Item {
         } catch (RuntimeException failure) {
             LOGGER.error("训练假人放置失败 pos={}", position, failure);
             if (player != null) {
-                player.displayClientMessage(Component.literal("训练假人放置失败：" + failure.getMessage()), true /* overlay */);
+                player.sendOverlayMessage(Component.literal("训练假人放置失败：" + failure.getMessage()));
             }
             return InteractionResult.FAIL;
         }

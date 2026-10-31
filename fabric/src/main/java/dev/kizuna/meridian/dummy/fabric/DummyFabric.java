@@ -3,6 +3,7 @@ package dev.kizuna.meridian.dummy.fabric;
 import dev.kizuna.meridian.humanoid.server.HumanoidSpeciesDefinitions;
 import dev.kizuna.meridian.vanilla.fabric.VanillaDamageFabric;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,6 +18,8 @@ public final class DummyFabric implements ModInitializer {
     public void onInitialize() {
         // 物种在任何世界加载前注册，Threatening 的认领、身体存档与健康宿主因此直接覆盖假人；放置钩子要求物种已登记。
         DummyContent.register();
+        // 击打报告包的类型在 26.2 要先登记编解码，客户端才能收到。
+        PayloadTypeRegistry.clientboundPlay().register(HitReportPayload.TYPE, HitReportPayload.CODEC);
         HumanoidSpeciesDefinitions.registerAll(speciesTable());
         DummySpawner.registerPlacement();
         DummyBodyAccess.bindHosts();
