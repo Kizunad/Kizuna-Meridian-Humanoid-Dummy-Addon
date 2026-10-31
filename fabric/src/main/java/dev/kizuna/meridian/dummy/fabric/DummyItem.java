@@ -1,20 +1,20 @@
 package dev.kizuna.meridian.dummy.fabric;
 
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemPlacementContext;
-import net.minecraft.item.ItemUsageContext;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
-import net.minecraft.world.event.GameEvent;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.gameevent.GameEvent;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,40 +25,40 @@ final class DummyItem extends Item {
     private static final float PLACE_VOLUME = 0.75F;
     private static final float PLACE_PITCH = 0.8F;
 
-    DummyItem(Settings settings) {
+    DummyItem(Properties settings) {
         super(settings);
     }
 
     @Override
-    public ActionResult useOnBlock(ItemUsageContext context) {
+    public InteractionResult useOn(UseOnContext context) {
         // 落点沿用方块放置规则：可替换方块就地放，否则放到点击面外侧；空间被占时不放。
-        World world = context.getWorld();
-        if (!(world instanceof ServerWorld serverWorld)) {
-            return ActionResult.SUCCESS;
+        Level world = context.getLevel();
+        if (!(world instanceof ServerLevel serverWorld)) {
+            return InteractionResult.SUCCESS;
         }
-        BlockPos position = new ItemPlacementContext(context).getBlockPos();
-        Vec3d feet = Vec3d.ofBottomCenter(position);
-        Box space = DummyContent.entityType().getDimensions().getBoxAt(feet);
-        if (!world.isSpaceEmpty(null, space) || !world.getOtherEntities(null, space).isEmpty()) {
-            return ActionResult.FAIL;
+        BlockPos position = new BlockPlaceContext(context).getClickedPos();
+        Vec3 feet = Vec3.atBottomCenterOf(position);
+        AABB space = DummyContent.entityType().getDimensions().makeBoundingBox(feet);
+        if (!world.noCollision(null, space) || !world.getEntities(null, space).isEmpty()) {
+            return InteractionResult.FAIL;
         }
-        PlayerEntity player = context.getPlayer();
-        float yaw = MathHelper.wrapDegrees(context.getPlayerYaw() + HALF_TURN_DEGREES);
+        Player player = context.getPlayer();
+        float yaw = Mth.wrapDegrees(context.getRotation() + HALF_TURN_DEGREES);
         try {
             DummySpawner.place(serverWorld, feet, yaw, DummySpawner.defaultTier());
         } catch (RuntimeException failure) {
             LOGGER.error("训练假人放置失败 pos={}", position, failure);
             if (player != null) {
-                player.sendMessage(Text.literal("训练假人放置失败：" + failure.getMessage()), true /* overlay */);
+                player.displayClientMessage(Component.literal("训练假人放置失败：" + failure.getMessage()), true /* overlay */);
             }
-            return ActionResult.FAIL;
+            return InteractionResult.FAIL;
         }
-        world.playSound(null, feet.x, feet.y, feet.z, SoundEvents.ENTITY_ARMOR_STAND_PLACE, SoundCategory.BLOCKS,
+        world.playSound(null, feet.x, feet.y, feet.z, SoundEvents.ARMOR_STAND_PLACE, SoundSource.BLOCKS,
                 PLACE_VOLUME, PLACE_PITCH);
-        world.emitGameEvent(player, GameEvent.ENTITY_PLACE, position);
-        if (player == null || !player.getAbilities().creativeMode) {
-            context.getStack().decrement(1);
+        world.gameEvent(player, GameEvent.ENTITY_PLACE, position);
+        if (player == null || !player.getAbilities().instabuild) {
+            context.getItemInHand().shrink(1);
         }
-        return ActionResult.CONSUME;
+        return InteractionResult.CONSUME;
     }
 }

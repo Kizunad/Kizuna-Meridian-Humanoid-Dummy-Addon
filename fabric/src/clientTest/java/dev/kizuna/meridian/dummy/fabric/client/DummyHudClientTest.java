@@ -1,23 +1,22 @@
 package dev.kizuna.meridian.dummy.fabric.client;
 
+import com.mojang.blaze3d.platform.NativeImage;
 import dev.kizuna.meridian.dummy.fabric.DummyEntity;
 import dev.kizuna.meridian.dummy.fabric.DummySpawner;
 import dev.kizuna.meridian.humanoid.server.HumanoidTier;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.CloudRenderMode;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.util.ScreenshotRecorder;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Hand;
-import net.minecraft.util.Util;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
-
+import net.minecraft.Util;
+import net.minecraft.client.CloudStatus;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.phys.Vec3;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -73,7 +72,7 @@ public final class DummyHudClientTest implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
     }
 
-    private void tick(MinecraftClient client) {
+    private void tick(Minecraft client) {
         ticks++;
         if (stage == Stage.DONE) {
             return;
@@ -82,11 +81,11 @@ public final class DummyHudClientTest implements ClientModInitializer {
             finish("超时，停在 " + stage);
             return;
         }
-        if (ticks < READY_TICKS || client.player == null || client.getOverlay() != null || client.getServer() == null) {
+        if (ticks < READY_TICKS || client.player == null || client.getOverlay() != null || client.getSingleplayerServer() == null) {
             return;
         }
         // 新世界教程提示同样画在右上角，每刻清掉，避免混入像素比较。
-        client.getToastManager().clear();
+        client.getToasts().clear();
         try {
             switch (stage) {
                 case WAITING -> start(client);
@@ -100,7 +99,7 @@ public final class DummyHudClientTest implements ClientModInitializer {
         }
     }
 
-    private void start(MinecraftClient client) throws Exception {
+    private void start(Minecraft client) throws Exception {
         // 读取正式入口创建的 HUD；挥剑在服务端线程执行，与玩家攻击走同一条伤害链。
         var entry = FabricLoader.getInstance().getEntrypoints("client", ClientModInitializer.class).stream()
                 .filter(DummyClient.class::isInstance)
@@ -109,33 +108,33 @@ public final class DummyHudClientTest implements ClientModInitializer {
         var field = DummyClient.class.getDeclaredField("hud");
         field.setAccessible(true /* accessible */);
         hud = (DummyHud) field.get(entry);
-        client.options.hudHidden = false;
+        client.options.hideGui = false;
         client.options.pauseOnLostFocus = false;
-        client.options.getCloudRenderMode().setValue(CloudRenderMode.OFF);
+        client.options.cloudStatus().set(CloudStatus.OFF);
         client.setScreen(null);
         Files.createDirectories(SCREENS);
-        var server = client.getServer();
-        UUID playerId = client.player.getUuid();
-        strike = server.submit(() -> strike(server.getPlayerManager().getPlayer(playerId)));
+        var server = client.getSingleplayerServer();
+        UUID playerId = client.player.getUUID();
+        strike = server.submit(() -> strike(server.getPlayerList().getPlayer(playerId)));
         stage = Stage.STRIKING;
     }
 
-    private static void strike(ServerPlayerEntity player) {
+    private static void strike(ServerPlayer player) {
         // 假人放在视线正前方、面朝玩家，截图里能同时看到假人与右上角报告。
-        player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
-        Vec3d ahead = Vec3d.fromPolar(LEVEL_PITCH, player.getYaw()).multiply(STRIKE_DISTANCE);
-        float facing = MathHelper.wrapDegrees(player.getYaw() + HALF_TURN);
-        DummyEntity dummy = DummySpawner.place(player.getServerWorld(), player.getPos().add(ahead), facing,
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
+        Vec3 ahead = Vec3.directionFromRotation(LEVEL_PITCH, player.getYRot()).scale(STRIKE_DISTANCE);
+        float facing = Mth.wrapDegrees(player.getYRot() + HALF_TURN);
+        DummyEntity dummy = DummySpawner.place(player.serverLevel(), player.position().add(ahead), facing,
                 HumanoidTier.WANDERING_QI);
         player.attack(dummy);
     }
 
-    private void awaitReport(MinecraftClient client) throws Exception {
+    private void awaitReport(Minecraft client) throws Exception {
         if (!strike.isDone()) {
             return;
         }
         strike.join();
-        long now = Util.getMeasuringTimeMs();
+        long now = Util.getMillis();
         if (shownTick == 0) {
             if (hud.lineCount(now) >= MIN_LINES) {
                 shownTick = ticks;
@@ -152,9 +151,9 @@ public final class DummyHudClientTest implements ClientModInitializer {
         stage = Stage.SHOWN;
     }
 
-    private void requireChineseText(MinecraftClient client, long now) throws Exception {
+    private void requireChineseText(Minecraft client, long now) throws Exception {
         // 文本另存一份供交接核对；英文模板词、零值扣减或缺少中文标签都算失败。
-        String language = client.getLanguageManager().getLanguage();
+        String language = client.getLanguageManager().getSelected();
         if (!language.equals(LANGUAGE)) {
             throw new IllegalStateException("客户端语言不是简体中文：" + language);
         }
@@ -182,7 +181,7 @@ public final class DummyHudClientTest implements ClientModInitializer {
     }
 
     private void awaitStillVisible() {
-        long now = Util.getMeasuringTimeMs();
+        long now = Util.getMillis();
         if (now - shownMillis < STILL_VISIBLE_MILLIS) {
             return;
         }
@@ -193,8 +192,8 @@ public final class DummyHudClientTest implements ClientModInitializer {
         stage = Stage.HOLDING;
     }
 
-    private void awaitGone(MinecraftClient client) throws Exception {
-        long now = Util.getMeasuringTimeMs();
+    private void awaitGone(Minecraft client) throws Exception {
+        long now = Util.getMillis();
         if (now - shownMillis < DummyHud.VISIBLE_MILLIS + GONE_MARGIN_MILLIS) {
             return;
         }
@@ -203,7 +202,7 @@ public final class DummyHudClientTest implements ClientModInitializer {
             throw new IllegalStateException("命中 4 秒后 HUD 仍有 " + lines + " 行");
         }
         try (NativeImage hidden = capture("hud-hidden.png")) {
-            double difference = probeDifference(shownImage, hidden, client.getWindow().getScaleFactor());
+            double difference = probeDifference(shownImage, hidden, client.getWindow().getGuiScale());
             if (difference < MIN_MEAN_DIFFERENCE) {
                 throw new IllegalStateException("右上角像素在显示与消失前后几乎相同：" + difference);
             }
@@ -212,8 +211,8 @@ public final class DummyHudClientTest implements ClientModInitializer {
     }
 
     private static NativeImage capture(String name) throws Exception {
-        NativeImage image = ScreenshotRecorder.takeScreenshot(MinecraftClient.getInstance().getFramebuffer());
-        image.writeTo(SCREENS.resolve(name));
+        NativeImage image = Screenshot.takeScreenshot(Minecraft.getInstance().getMainRenderTarget());
+        image.writeToFile(SCREENS.resolve(name));
         return image;
     }
 
@@ -225,7 +224,7 @@ public final class DummyHudClientTest implements ClientModInitializer {
         double total = 0;
         for (int y = inset; y < inset + size; y++) {
             for (int x = right - size; x < right; x++) {
-                total += Math.abs(luminance(shown.getColor(x, y)) - luminance(hidden.getColor(x, y)));
+                total += Math.abs(luminance(shown.getPixelRGBA(x, y)) - luminance(hidden.getPixelRGBA(x, y)));
             }
         }
         return total / (size * size);
@@ -249,6 +248,6 @@ public final class DummyHudClientTest implements ClientModInitializer {
         } catch (Exception reportFailure) {
             throw new IllegalStateException(reportFailure);
         }
-        MinecraftClient.getInstance().scheduleStop();
+        Minecraft.getInstance().stop();
     }
 }

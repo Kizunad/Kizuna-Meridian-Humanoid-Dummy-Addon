@@ -7,16 +7,15 @@ import dev.kizuna.meridian.dummy.protocol.pb.DummyMessages.Injury;
 import dev.kizuna.meridian.dummy.protocol.pb.DummyMessages.PartChange;
 import dev.kizuna.meridian.dummy.protocol.pb.DummyMessages.PartCondition;
 import dev.kizuna.meridian.dummy.server.HitAmounts;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 
 /**
  * 右上角击打报告：最近 3 次命中自上而下叠放，越旧越淡；最后一次命中 4 秒后整体消失，
@@ -39,7 +38,7 @@ final class DummyHud {
     private static final int PANEL_RGB = 0x1C1C1C;
     private static final float PANEL_OPACITY = 0.6F;
     private static final int MAX_ALPHA = 255;
-    /** TextRenderer 把低于 4 的 alpha 当作不透明，渐隐到底时停在这里。 */
+    /** Font 把低于 4 的 alpha 当作不透明，渐隐到底时停在这里。 */
     private static final int MIN_TEXT_ALPHA = 4;
     private static final int ALPHA_SHIFT = 24;
     private static final String KEY = "hud." + DummyFabric.MOD_ID + ".";
@@ -81,7 +80,7 @@ final class DummyHud {
         return blocks(now).stream().mapToInt(block -> block.lines().size()).sum();
     }
 
-    void render(DrawContext context, TextRenderer textRenderer, long now) {
+    void render(GuiGraphics context, Font textRenderer, long now) {
         int top = MARGIN;
         for (HudBlock block : blocks(now)) {
             int bottom = drawBlock(context, textRenderer, block, top);
@@ -89,20 +88,20 @@ final class DummyHud {
         }
     }
 
-    private static int drawBlock(DrawContext context, TextRenderer textRenderer, HudBlock block, int top) {
+    private static int drawBlock(GuiGraphics context, Font textRenderer, HudBlock block, int top) {
         // 每块右对齐，宽度取本块最长一行。
         int textWidth = 0;
         for (HudLine line : block.lines()) {
-            textWidth = Math.max(textWidth, textRenderer.getWidth(line.text()));
+            textWidth = Math.max(textWidth, textRenderer.width(line.text()));
         }
-        int right = context.getScaledWindowWidth() - MARGIN;
+        int right = context.guiWidth() - MARGIN;
         int left = right - textWidth - PADDING - PADDING;
         int bottom = top + block.lines().size() * LINE_HEIGHT + PADDING + PADDING;
         context.fill(left, top, right, bottom, color(PANEL_RGB, PANEL_OPACITY * block.opacity()));
         int y = top + PADDING;
         for (HudLine line : block.lines()) {
             int argb = color(line.rgb(), block.opacity());
-            context.drawTextWithShadow(textRenderer, line.text(), left + PADDING, y, argb);
+            context.drawString(textRenderer, line.text(), left + PADDING, y, argb);
             y += LINE_HEIGHT;
         }
         return bottom;
@@ -121,62 +120,62 @@ final class DummyHud {
         lines.add(new HudLine(part(report), TITLE_RGB));
         String beforeArmor = HitAmounts.format(report.getVanillaDose());
         String afterArmor = HitAmounts.format(report.getDoseAfterArmor());
-        Text dose = Text.translatable(KEY + "dose", kind(report.getDamageKind()), beforeArmor, afterArmor);
+        Component dose = Component.translatable(KEY + "dose", kind(report.getDamageKind()), beforeArmor, afterArmor);
         lines.add(new HudLine(dose, DETAIL_RGB));
         lines.add(new HudLine(injuries(report.getInjuriesList()), DETAIL_RGB));
         for (PartChange change : report.getPartChangesList()) {
-            Text changed = Text.translatable(KEY + "change", change.getPartName(), condition(change.getBefore()),
+            Component changed = Component.translatable(KEY + "change", change.getPartName(), condition(change.getBefore()),
                     condition(change.getAfter()));
             lines.add(new HudLine(changed, HIGHLIGHT_RGB));
         }
         return lines;
     }
 
-    private static Text part(HitReport report) {
+    private static Component part(HitReport report) {
         // 打在已归零的部位上时部位本身不再扣血，只写 HP，不写「−0.00」。
         String hp = number(report.getPartHp());
         String maximum = number(report.getPartMaxHp());
         if (!HitAmounts.listed(report.getPartLoss())) {
-            return Text.translatable(KEY + "part.unchanged", report.getPartName(), hp, maximum);
+            return Component.translatable(KEY + "part.unchanged", report.getPartName(), hp, maximum);
         }
-        return Text.translatable(KEY + "part", report.getPartName(), hp, maximum,
+        return Component.translatable(KEY + "part", report.getPartName(), hp, maximum,
                 HitAmounts.format(report.getPartLoss()));
     }
 
-    private static Text injuries(List<Injury> injuries) {
+    private static Component injuries(List<Injury> injuries) {
         // 报告已按扣除量降序；只显示前几项，其余折叠为计数。
         if (injuries.isEmpty()) {
-            return Text.translatable(KEY + "injuries.none");
+            return Component.translatable(KEY + "injuries.none");
         }
-        MutableText list = Text.empty();
+        MutableComponent list = Component.empty();
         int shown = Math.min(injuries.size(), MAX_INJURIES_SHOWN);
         for (int index = 0; index < shown; index++) {
             if (index > 0) {
-                list.append(Text.translatable(KEY + "separator"));
+                list.append(Component.translatable(KEY + "separator"));
             }
             list.append(injury(injuries.get(index)));
         }
         int hidden = injuries.size() - shown;
         if (hidden > 0) {
-            list.append(Text.translatable(KEY + "more", hidden));
+            list.append(Component.translatable(KEY + "more", hidden));
         }
-        return Text.translatable(KEY + "injuries", list);
+        return Component.translatable(KEY + "injuries", list);
     }
 
-    private static Text injury(Injury injury) {
+    private static Component injury(Injury injury) {
         String lost = HitAmounts.format(injury.getHp());
         if (injury.getSpillover()) {
-            return Text.translatable(KEY + "injury.spillover", injury.getName(), lost);
+            return Component.translatable(KEY + "injury.spillover", injury.getName(), lost);
         }
-        return Text.translatable(KEY + "injury", injury.getName(), lost);
+        return Component.translatable(KEY + "injury", injury.getName(), lost);
     }
 
-    private static Text kind(DamageKind kind) {
-        return Text.translatable(KEY + "kind." + kind.name().toLowerCase(Locale.ROOT));
+    private static Component kind(DamageKind kind) {
+        return Component.translatable(KEY + "kind." + kind.name().toLowerCase(Locale.ROOT));
     }
 
-    private static Text condition(PartCondition condition) {
-        return Text.translatable(KEY + "condition." + condition.name().toLowerCase(Locale.ROOT));
+    private static Component condition(PartCondition condition) {
+        return Component.translatable(KEY + "condition." + condition.name().toLowerCase(Locale.ROOT));
     }
 
     private static String number(double value) {
@@ -191,5 +190,5 @@ final class DummyHud {
     /** 一次命中对应的一块；opacity 已乘上整体渐隐。 */
     record HudBlock(List<HudLine> lines, float opacity) { }
 
-    record HudLine(Text text, int rgb) { }
+    record HudLine(Component text, int rgb) { }
 }

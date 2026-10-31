@@ -12,17 +12,17 @@ import net.fabricmc.fabric.api.client.rendering.v1.EntityModelLayerRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.client.render.entity.model.EntityModelLayer;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.util.Util;
+import net.minecraft.Util;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.geom.ModelLayerLocation;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.network.FriendlyByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** 客户端入口：假人渲染、击打报告接收与右上角 HUD。 */
 public final class DummyClient implements ClientModInitializer {
-    static final EntityModelLayer DUMMY_LAYER = new EntityModelLayer(DummyContent.DUMMY_ID, "main");
+    static final ModelLayerLocation DUMMY_LAYER = new ModelLayerLocation(DummyContent.DUMMY_ID, "main");
     private static final Logger LOGGER = LoggerFactory.getLogger(DummyFabric.MOD_ID);
     private final DummyHud hud = new DummyHud();
 
@@ -32,13 +32,13 @@ public final class DummyClient implements ClientModInitializer {
         EntityRendererRegistry.register(DummyContent.entityType(), DummyRenderer::new);
         ClientPlayNetworking.registerGlobalReceiver(DummyChannels.HIT_REPORT, this::receive);
         HudRenderCallback.EVENT.register((context, tickDelta) -> {
-            MinecraftClient client = MinecraftClient.getInstance();
-            hud.render(context, client.textRenderer, Util.getMeasuringTimeMs());
+            Minecraft client = Minecraft.getInstance();
+            hud.render(context, client.font, Util.getMillis());
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(hud::clear));
     }
 
-    private void receive(MinecraftClient client, ClientPlayNetworkHandler handler, PacketByteBuf buffer,
+    private void receive(Minecraft client, ClientPacketListener handler, FriendlyByteBuf buffer,
                          PacketSender sender) {
         // 先按上限拒绝超长载荷再复制；解码与范围校验回到主线程，连接已切换时丢弃。
         int size = buffer.readableBytes();
@@ -49,12 +49,12 @@ public final class DummyClient implements ClientModInitializer {
         byte[] bytes = new byte[size];
         buffer.readBytes(bytes);
         client.execute(() -> {
-            if (client.getNetworkHandler() != handler) {
+            if (client.getConnection() != handler) {
                 return;
             }
             try {
                 HitReport report = HitReports.decode(bytes);
-                hud.push(report, Util.getMeasuringTimeMs());
+                hud.push(report, Util.getMillis());
             } catch (IllegalArgumentException failure) {
                 LOGGER.warn("丢弃无效的训练假人击打报告：{}", failure.getMessage());
             }

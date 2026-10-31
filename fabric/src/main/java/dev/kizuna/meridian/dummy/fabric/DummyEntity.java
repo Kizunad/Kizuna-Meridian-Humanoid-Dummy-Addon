@@ -1,47 +1,47 @@
 package dev.kizuna.meridian.dummy.fabric;
 
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.world.World;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 /**
  * 训练假人：不寻路、不攻击、不转头、不被击退、不消失，可以被推动。
  * 身体与伤害全部由 Threatening 与 Damage 承担；这里只保证原版生命值永远不触发死亡。
  */
-public final class DummyEntity extends MobEntity {
+public final class DummyEntity extends Mob {
     /** 原版生命值的下限；身体部位可以全部归零，原版投影仍保持存活。 */
     static final float MINIMUM_HEALTH = Float.MIN_NORMAL;
 
-    public DummyEntity(EntityType<? extends DummyEntity> type, World world) {
+    public DummyEntity(EntityType<? extends DummyEntity> type, Level world) {
         super(type, world);
-        setPersistent();
+        setPersistenceRequired();
     }
 
     @Override
     public void tick() {
         // 朝向固定为放置时的方向；身体朝向控制和视线都不再改变它。
         super.tick();
-        float facing = getYaw();
-        setHeadYaw(facing);
-        setBodyYaw(facing);
+        float facing = getYRot();
+        setYHeadRot(facing);
+        setYBodyRot(facing);
     }
 
     @Override
-    public void takeKnockback(double strength, double x, double z) {
+    public void knockback(double strength, double x, double z) {
         // 击退被整体忽略；推挤走的是碰撞路径，不经过这里。
     }
 
     @Override
-    public boolean canImmediatelyDespawn(double distanceSquared) {
+    public boolean removeWhenFarAway(double distanceSquared) {
         return false;
     }
 
     @Override
-    public boolean cannotDespawn() {
+    public boolean requiresCustomPersistence() {
         return true;
     }
 
@@ -58,26 +58,26 @@ public final class DummyEntity extends MobEntity {
     }
 
     @Override
-    protected void tickInVoid() {
+    protected void onBelowWorld() {
         discard();
     }
 
     @Override
-    protected ActionResult interactMob(PlayerEntity player, Hand hand) {
+    protected InteractionResult mobInteract(Player player, InteractionHand hand) {
         // 潜行空手右键收回为物品；身体随实体一起丢弃，下一次放置重新出生。
-        if (hand != Hand.MAIN_HAND || !player.isSneaking() || !player.getStackInHand(hand).isEmpty()) {
-            return ActionResult.PASS;
+        if (hand != InteractionHand.MAIN_HAND || !player.isShiftKeyDown() || !player.getItemInHand(hand).isEmpty()) {
+            return InteractionResult.PASS;
         }
-        World world = getWorld();
-        if (!world.isClient()) {
-            player.getInventory().offerOrDrop(new ItemStack(DummyContent.item()));
+        Level world = level();
+        if (!world.isClientSide()) {
+            player.getInventory().placeItemBackInInventory(new ItemStack(DummyContent.item()));
             discard();
         }
-        return ActionResult.success(world.isClient());
+        return InteractionResult.sidedSuccess(world.isClientSide());
     }
 
     @Override
-    public ItemStack getPickBlockStack() {
+    public ItemStack getPickResult() {
         return new ItemStack(DummyContent.item());
     }
 }

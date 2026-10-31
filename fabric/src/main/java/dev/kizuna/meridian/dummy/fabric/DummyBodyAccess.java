@@ -10,8 +10,7 @@ import dev.kizuna.meridian.protocol.pb.MeridianMessages.BodyCommand;
 import dev.kizuna.meridian.protocol.pb.MeridianMessages.RequestEnvelope;
 import dev.kizuna.meridian.server.BodyHealthHost;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.entity.LivingEntity;
-
+import net.minecraft.world.entity.LivingEntity;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,7 +32,7 @@ public final class DummyBodyAccess {
         HealthHostRequest.Builder request = HealthHostRequest.newBuilder();
         request.setProtocolVersion(HOST_PROTOCOL_VERSION);
         request.setRequestId(UUID.randomUUID().toString());
-        request.setSubjectId(entity.getUuidAsString());
+        request.setSubjectId(entity.getStringUUID());
         request.setInspect(true);
         return exchange(request.build());
     }
@@ -59,7 +58,7 @@ public final class DummyBodyAccess {
         HealthHostRequest.Builder request = HealthHostRequest.newBuilder();
         request.setProtocolVersion(HOST_PROTOCOL_VERSION);
         request.setRequestId(requestId);
-        request.setSubjectId(entity.getUuidAsString());
+        request.setSubjectId(entity.getStringUUID());
         request.setEffect(envelope);
         exchange(request.build());
     }

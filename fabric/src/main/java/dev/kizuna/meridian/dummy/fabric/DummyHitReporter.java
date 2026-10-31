@@ -10,8 +10,8 @@ import dev.kizuna.meridian.vanilla.VanillaDamageBridge;
 import dev.kizuna.meridian.vanilla.fabric.VanillaDamageFabric;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerPlayer;
 
 /** Damage 观察方：玩家打到假人时把提交后的事实整理成报告，只发给攻击者本人。 */
 final class DummyHitReporter {
@@ -23,7 +23,7 @@ final class DummyHitReporter {
         if (!(event.target() instanceof DummyEntity dummy)) {
             return;
         }
-        if (!(event.attacker() instanceof ServerPlayerEntity attacker)) {
+        if (!(event.attacker() instanceof ServerPlayer attacker)) {
             return;
         }
         HitReport report = HitReportBuilder.build(facts(event));
@@ -31,7 +31,7 @@ final class DummyHitReporter {
         if (!ServerPlayNetworking.canSend(attacker, DummyChannels.HIT_REPORT)) {
             return;
         }
-        PacketByteBuf buffer = PacketByteBufs.create();
+        FriendlyByteBuf buffer = PacketByteBufs.create();
         buffer.writeBytes(HitReports.encode(report));
         ServerPlayNetworking.send(attacker, DummyChannels.HIT_REPORT, buffer);
     }
