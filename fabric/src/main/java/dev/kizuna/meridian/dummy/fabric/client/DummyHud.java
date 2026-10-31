@@ -42,6 +42,8 @@ final class DummyHud {
     private static final int MIN_TEXT_ALPHA = 4;
     private static final int ALPHA_SHIFT = 24;
     private static final String KEY = "hud." + DummyFabric.MOD_ID + ".";
+    /** 伤害类型名引用 Damage 的公开键，本模组不另写一份。 */
+    private static final String DAMAGE_KIND_KEY = "damage_kind.meridian.";
     private final Deque<HitReport> entries = new ArrayDeque<>();
     private long lastHitMillis;
 
@@ -171,7 +173,7 @@ final class DummyHud {
     }
 
     private static Component kind(DamageKind kind) {
-        return Component.translatable(KEY + "kind." + kind.name().toLowerCase(Locale.ROOT));
+        return Component.translatable(DAMAGE_KIND_KEY + kind.name().toLowerCase(Locale.ROOT));
     }
 
     private static Component condition(PartCondition condition) {
