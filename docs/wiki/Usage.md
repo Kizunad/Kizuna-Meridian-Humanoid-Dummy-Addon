@@ -20,6 +20,8 @@
 - 生成：省略档位时取物种表 `default_tier`（游炁），假人面朝命令源。反馈「已生成训练假人（档位）：UUID」。
 - 换档：在原位置、原朝向按新档位重新生成，保留自定义名称，旧假人移除。选中的非假人实体被忽略；一个假人都没选中时命令失败。
 - 清除：用原版 `/kill @e[type=meridian_humanoid_dummy:dummy,distance=..16]`；假人被 `/kill` 直接移除，不走伤害结算。
+- 回满：用 Debug 登记的 `/meridian body heal <targets>`（省略模式即 `all`），部位、组织与器官回到出生上限并清除疲劳，另补满真元；
+  `health` 模式只补部位。
 
 ## 档位
 

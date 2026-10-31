@@ -9,8 +9,12 @@ import dev.kizuna.meridian.humanoid.server.HumanoidTier;
 import dev.kizuna.meridian.protocol.pb.BodyMessages.BodySnapshot;
 import dev.kizuna.meridian.protocol.pb.BodyMessages.MeridianOpeningStage;
 import dev.kizuna.meridian.protocol.pb.BodyMessages.MeridianState;
+import dev.kizuna.meridian.protocol.pb.BodyMessages.OrganDefinition;
+import dev.kizuna.meridian.protocol.pb.BodyMessages.OrganState;
 import dev.kizuna.meridian.protocol.pb.BodyMessages.PartDefinition;
 import dev.kizuna.meridian.protocol.pb.BodyMessages.PartState;
+import dev.kizuna.meridian.protocol.pb.BodyMessages.TissueDefinition;
+import dev.kizuna.meridian.protocol.pb.BodyMessages.TissueState;
 import dev.kizuna.meridian.vanilla.fabric.VanillaDamageFabric;
 import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
@@ -51,7 +55,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
-/** 放置与朝向、左臂命中报告、归零不死、潜行收回、原版 kill 清除、humanoid spawn 放置钩子、凡人档与换档的宿主回归。 */
+/** 放置与朝向、左臂命中报告、归零不死、body heal 回满、潜行收回、原版 kill 清除、humanoid spawn 放置钩子、凡人档与换档的宿主回归。 */
 public final class DummyGameTest implements FabricGameTest {
     private static final int FLOOR_Y = 1;
     private static final int STAND_Y = 2;
@@ -70,6 +74,7 @@ public final class DummyGameTest implements FabricGameTest {
     private static final int CLEAR_RADIUS = 2;
     private static final int NEAR_DUMMIES = 2;
     private static final double REBIRTH_SEARCH = 1.0;
+    private static final double ABSENT_HP = 0.0;
     private static final Vec3 NEAR_EAST = new Vec3(1, 0, 0);
     private static final Vec3 NEAR_NORTH = new Vec3(0, 0, -1);
     private static final Vec3 FAR = new Vec3(3, 0, 3);
@@ -185,6 +190,25 @@ public final class DummyGameTest implements FabricGameTest {
             context.assertTrue(alive, "部位归零后假人死亡或被移除");
             context.succeed();
         });
+    }
+
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
+    public void bodyHealRestoresTheFullBody(GameTestHelper context) {
+        // 旧 reset 由 Debug 的 body heal 取代；部位、组织与器官要 all 模式才全部补回，health 只补部位。
+        DummyEntity dummy = place(context, HumanoidTier.WANDERING_QI);
+        try {
+            dummy.invulnerableTime = 0;
+            dummy.hurt(context.getLevel().damageSources().playerAttack(attacker(context)), HEAVY_DOSE);
+            context.assertTrue(!full(DummyBodyAccess.inspect(dummy)), "重击没有改变身体");
+            CommandSourceStack source = source(context);
+            String heal = "meridian body heal " + dummy.getStringUUID() + " all";
+            int healed = source.getServer().getCommands().performPrefixedCommand(source, heal);
+            context.assertTrue(healed == 1, "body heal 没有处理这一个假人");
+            context.assertTrue(full(DummyBodyAccess.inspect(dummy)), "body heal 后部位、组织或器官没有回满");
+        } finally {
+            dummy.discard();
+        }
+        context.succeed();
     }
 
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
@@ -359,6 +383,32 @@ public final class DummyGameTest implements FabricGameTest {
         double remaining = body.getPartStatesList().stream().mapToDouble(PartState::getHp).sum();
         double maximum = body.getStructure().getPartsList().stream().mapToDouble(PartDefinition::getMaxHp).sum();
         return remaining / maximum;
+    }
+
+    private static boolean full(BodySnapshot body) {
+        // 部位、组织、器官逐个对照上限。
+        Map<String, Double> maxima = new HashMap<>();
+        for (PartDefinition part : body.getStructure().getPartsList()) {
+            maxima.put("part:" + part.getId(), part.getMaxHp());
+        }
+        for (TissueDefinition tissue : body.getStructure().getTissuesList()) {
+            maxima.put("tissue:" + tissue.getId(), tissue.getMaxHp());
+        }
+        for (OrganDefinition organ : body.getStructure().getOrgansList()) {
+            maxima.put("organ:" + organ.getId(), organ.getMaxHp());
+        }
+        Map<String, Double> current = new HashMap<>();
+        for (PartState state : body.getPartStatesList()) {
+            current.put("part:" + state.getId(), state.getHp());
+        }
+        for (TissueState state : body.getTissueStatesList()) {
+            current.put("tissue:" + state.getId(), state.getHp());
+        }
+        for (OrganState state : body.getOrganStatesList()) {
+            current.put("organ:" + state.getId(), state.getHp());
+        }
+        return maxima.entrySet().stream().allMatch(
+                entry -> Math.abs(current.getOrDefault(entry.getKey(), ABSENT_HP) - entry.getValue()) < TOLERANCE);
     }
 
     private static final class RecordedOutput implements CommandSource {

@@ -19,7 +19,7 @@ Framework、Human、Vanilla-Humanoid-Threatening、Vanilla-Damage 与 Players-An
   `brain = false`。
 - 物品放置、`/meridian humanoid spawn` 与 `realm` 都经 Threatening 的公开出生入口生成身体；凡人档是游炁境界下一条经脉都未开。
 - 所有伤害走 Damage → Framework 身体事务；`never` 规则让结算结果不再标记致死，部位可以停在 0 HP，原版生命值保持为正。
-- 身体不自然回复。
+- 身体不自然回复；回满用 Debug 的 `/meridian body heal`。
 - 放置不从区域真元池扣除，收回、清除与换档移除实体时按 Threatening 的规则把身体真元归还区域，与刷怪蛋一致。
 
 ## 源码分层

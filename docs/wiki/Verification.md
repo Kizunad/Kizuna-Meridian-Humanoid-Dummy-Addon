@@ -28,6 +28,7 @@ git diff --check
 | `creativeGroupHoldsOnlyTheDummy` | 独立创造栏只有假人物品 |
 | `swordHitOnLeftArmSendsOneMatchingReport` | 每个种子换一个新出生的假人，铁剑命中左上臂恰好产生一条报告：部位左上臂、类型切割、护甲前与护甲后剂量等于 Damage 观察到的输入，受伤清单里没有不足 0.005 的扣减 |
 | `dummyBelowHumanDeathLineStaysAlive` | 连续重击使部位归零、总 HP 低于人体死亡线，20 tick 后假人仍存活、未移除、原版生命值为正 |
+| `bodyHealRestoresTheFullBody` | 重击后 `/meridian body heal <uuid> all` 使部位、组织、器官全部回到上限 |
 | `sneakingEmptyHandPicksTheDummyUp` | 潜行空手右键移除假人并得到一个物品 |
 | `vanillaKillRemovesOnlyDummiesInsideTheRadius` | 原版 `kill @e[type=meridian_humanoid_dummy:dummy,distance=..2]` 移除半径内的两个，保留半径外的一个 |
 | `mortalSpawnHasNoOpenedMeridianAndRealmCommandRebirths` | `/meridian humanoid spawn meridian_humanoid_dummy:dummy mortal` 生成凡人档且无已开经脉；`/meridian humanoid realm <uuid> true_qi` 在原位置换成真炁档 |
@@ -66,11 +67,12 @@ git diff --check
 `clear` 改用原版 `/kill`，`reset` 删除，`realm` 挂到 `/meridian humanoid realm`，档位词表改为 `mortal`、`wandering_qi`、`true_qi`。
 `DummyResetPlan`、档位名 `DummyRealm` 与 `DummyResetPlanTest`（4 项）随之删除，JUnit 15 → 11。
 `swordHitOnLeftArmSendsOneMatchingReport` 原先每个种子前用 `reset` 回满同一个假人，现在每个种子换一个新出生的假人。
-`resetCommandRestoresTheFullBody` 删除；替代写法 `/meridian body heal` 由 Debug 登记，Debug 落地后再补回满用例。
+`resetCommandRestoresTheFullBody` 删除，回满改由 Debug 的 `/meridian body heal <targets> all` 覆盖，新增 `bodyHealRestoresTheFullBody`；
+`health` 模式只补部位，组织与器官要 `all` 才补回，所以用例写明 `all`。
 
-命令：先在 Framework、Human、Threatening 执行 `./gradlew assemble`（三仓均为最新），删除 `.gradle/loom-cache/remapped_mods` 后
-`./gradlew test build :fabric:runGametest`；`ALSOFT_DRIVERS=null xvfb-run -a -s "-screen 0 1280x960x24" ./gradlew :fabric:runClientTest`；
+命令：先在 Framework、Human、Threatening、Debug 执行 `./gradlew assemble`（均为最新），删除 `.gradle/loom-cache/remapped_mods` 后
+`./gradlew test --rerun build :fabric:runGametest`；`ALSOFT_DRIVERS=null xvfb-run -a -s "-screen 0 1280x960x24" ./gradlew :fabric:runClientTest`；
 `python3 scripts/check_docs.py`；`git diff --check`。
 
-结果：JUnit 11/11（`HitReportsTest` 9、`HitAmountsTest` 2）；GameTest 9/9，加载 68 个模组；
-clientTest `success=true`，加载 87 个模组，命中左小腿，HUD 3 行；文档检查通过（6 个页面）。
+结果：JUnit 11/11（`HitReportsTest` 9、`HitAmountsTest` 2）；GameTest 10/10，加载 68 个模组；
+clientTest `success=true`，加载 87 个模组，命中胸部，HUD 3 行；文档检查通过（6 个页面）。
