@@ -1,6 +1,7 @@
 # 构建与验证
 
-Java 17、Gradle 8.8 wrapper；相邻仓库只通过已构建的安装 JAR 接入，构建本仓库不会改写 Framework、Threatening 或 Damage 的输出。
+Java 17、Gradle 8.14.6 wrapper、Loom 1.13.6，版本取自 Framework 的版本目录。Framework、Threatening 与 Damage 在 `settings.gradle` 中按
+Framework 统一装配清单以源码组合，编译与开发运行使用其当前输出；客户端测试所需的 Human 客户端库按清单读已构建的 JAR。
 `fabric/build.gradle` 的 `clearNestedJarCache` 在每次 `remapJar` 前删除 `fabric/build/loom-cache/temp/modprocessing`：
 Loom 只按坐标复用这里的嵌套 JAR，SNAPSHOT 坐标不变时会把旧的 server/shared JAR 打进发布 JAR。
 

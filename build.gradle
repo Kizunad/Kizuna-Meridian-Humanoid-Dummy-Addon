@@ -1,22 +1,13 @@
 plugins {
     id 'base'
-    id 'fabric-loom' version '1.6-SNAPSHOT' apply false
-    id 'com.google.protobuf' version '0.9.6' apply false
+    alias(libs.plugins.fabric.loom) apply false
+    alias(libs.plugins.protobuf) apply false
 }
 
 allprojects {
     group = 'dev.kizuna.meridian.dummy'
     version = '0.1.0-SNAPSHOT'
 }
-
-// 相邻仓库的安装产物，各子工程按需声明为编译或运行依赖。
-ext.siblingArtifacts = [
-        frameworkServer: '../Kizuna-Meridian-Mod-Framework/server/build/libs/kizuna-meridian-mod-framework-server-0.1.0-SNAPSHOT.jar',
-        humanoidServer: '../Kizuna-Meridian-Vanilla-Humanoid-Threatening/server/build/libs/kizuna-meridian-vanilla-humanoid-threatening-server-0.1.0-SNAPSHOT.jar',
-        humanoidFabric: '../Kizuna-Meridian-Vanilla-Humanoid-Threatening/fabric/build/libs/kizuna-meridian-vanilla-humanoid-threatening-fabric-0.1.0-SNAPSHOT.jar',
-        damageServer: '../Kizuna-Meridian-Vanilla-Damage-Addon/server/build/libs/kizuna-meridian-vanilla-damage-addon-server-0.1.0-SNAPSHOT.jar',
-        damageFabric: '../Kizuna-Meridian-Vanilla-Damage-Addon/fabric/build/libs/kizuna-meridian-vanilla-damage-addon-fabric-0.1.0-SNAPSHOT.jar'
-]
 
 subprojects {
     apply plugin: 'java-library'
@@ -26,18 +17,18 @@ subprojects {
     }
     java {
         toolchain {
-            languageVersion = JavaLanguageVersion.of(17)
+            languageVersion = JavaLanguageVersion.of(libs.versions.java.get())
         }
         withSourcesJar()
     }
     base.archivesName = "${rootProject.name}-${project.name}"
     tasks.withType(JavaCompile).configureEach {
-        options.release = 17
+        options.release = libs.versions.java.get().toInteger()
         options.encoding = 'UTF-8'
     }
     tasks.withType(JavaExec).configureEach {
         javaLauncher = javaToolchains.launcherFor {
-            languageVersion = JavaLanguageVersion.of(17)
+            languageVersion = JavaLanguageVersion.of(libs.versions.java.get())
         }
     }
     tasks.withType(Jar).configureEach {

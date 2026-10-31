@@ -6,8 +6,26 @@ pluginManagement {
     }
 }
 
+// 相邻仓库位置、产物路径与第三方版本都由 Framework 的工作区脚本提供（kizunaWorkspace、libs）。
+apply from: new File(rootDir.parentFile, 'Kizuna-Meridian-Mod-Framework/scripts/workspace.gradle')
+
 rootProject.name = 'kizuna-meridian-humanoid-dummy-addon'
 include 'shared', 'server', 'fabric'
 
-// 相邻仓库只通过已构建的安装 JAR 接入，不启用 composite build，
-// 构建本仓库不会改写 Framework、Threatening 或 Damage 的输出目录。
+// 相邻仓库按 Framework 统一装配清单以源码组合。local.meridian 是框架的本地替换键；
+// 本构建直接组合框架时以这里的规则为准，功法与 Human 的协议还需要 client。
+// 完整装配按坐标装入 Threatening 等模组时，Loom 以框架真实坐标 dev.kizuna.meridian 重新加入其传递库；
+// 只替换 local.meridian 时该坐标会按外部模块解析而失败，所以真实坐标也登记替换。
+kizunaWorkspace.includeSource('framework', [
+        client: ['local.meridian:client', 'dev.kizuna.meridian:client'],
+        server: ['local.meridian:server', 'dev.kizuna.meridian:server']
+])
+// Threatening 与 Damage 的 Fabric 是模组依赖，Loom 按真实坐标重新加入其传递库，所以替换键用各工程自身的 group 与工程名。
+kizunaWorkspace.includeSource('humanoid-threatening', [
+        fabric: 'dev.kizuna.meridian.humanoid:fabric',
+        server: 'dev.kizuna.meridian.humanoid:server'
+])
+kizunaWorkspace.includeSource('vanilla-damage', [
+        fabric: 'dev.kizuna.meridian.vanilla:fabric',
+        server: 'dev.kizuna.meridian.vanilla:server'
+])

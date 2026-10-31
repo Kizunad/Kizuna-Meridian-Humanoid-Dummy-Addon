@@ -3,11 +3,12 @@ description = '训练假人击打报告、重置计划与档位的纯 Java 规�
 dependencies {
     api project(':shared')
     // Framework 快照与 Threatening 档位由必装宿主在运行时提供，这里只编译引用。
-    compileOnly files(rootProject.file(siblingArtifacts.frameworkServer))
-    compileOnly files(rootProject.file(siblingArtifacts.humanoidServer))
-    testImplementation files(rootProject.file(siblingArtifacts.frameworkServer))
-    testImplementation files(rootProject.file(siblingArtifacts.humanoidServer))
-    testImplementation 'junit:junit:4.13.2'
+    // 两者在 settings 中以源码组合，与原先读单个 JAR 一致只取模块本身。
+    compileOnly('local.meridian:server') { transitive = false }
+    compileOnly('dev.kizuna.meridian.humanoid:server') { transitive = false }
+    testImplementation('local.meridian:server') { transitive = false }
+    testImplementation('dev.kizuna.meridian.humanoid:server') { transitive = false }
+    testImplementation libs.junit4
 }
 
 test {

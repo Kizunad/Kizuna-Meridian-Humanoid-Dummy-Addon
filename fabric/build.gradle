@@ -6,25 +6,28 @@ repositories {
     maven { url = 'https://maven.fabricmc.net/' }
 }
 
-def sibling = { String key -> rootProject.file(rootProject.siblingArtifacts[key]) }
-
 dependencies {
-    minecraft 'com.mojang:minecraft:1.20.1'
-    mappings 'net.fabricmc:yarn:1.20.1+build.10:v2'
-    modImplementation 'net.fabricmc:fabric-loader:0.16.10'
-    modImplementation 'net.fabricmc.fabric-api:fabric-api:0.92.3+1.20.1'
+    minecraft libs.minecraft
+    mappings "net.fabricmc:yarn:${libs.versions.yarn.get()}:v2"
+    modImplementation libs.fabric.loader
+    modImplementation libs.fabric.api
 
     implementation project(':server')
     include project(':server')
     include project(':shared')
-    include implementation('com.google.protobuf:protobuf-java:4.36.2')
+    // 版本目录条目是 Provider，implementation 不返回依赖对象，嵌套声明单独写。
+    implementation libs.protobuf.java
+    include libs.protobuf.java
     // 必装的类人身体宿主与原版伤害接线；物种注册、出生与伤害观察都走它们的公开 API。
-    modImplementation files(sibling('humanoidFabric'), sibling('damageFabric'))
+    // 相邻仓库在 settings 中以源码组合，与原先读单个 JAR 一致只取各模块本身。
+    modImplementation('dev.kizuna.meridian.humanoid:fabric') { transitive = false }
+    modImplementation('dev.kizuna.meridian.vanilla:fabric') { transitive = false }
     // Framework 协议与 Threatening 纯规则在安装时由宿主 JAR 嵌套提供，这里不再重复嵌套。
-    implementation files(sibling('frameworkServer'), sibling('humanoidServer'))
+    implementation('local.meridian:server') { transitive = false }
+    implementation('dev.kizuna.meridian.humanoid:server') { transitive = false }
     // 观察事件引用 Damage 的提交回执类型；运行时由必装 Damage 模组提供。
-    compileOnly files(sibling('damageServer'))
-    testImplementation 'junit:junit:4.13.2'
+    compileOnly('dev.kizuna.meridian.vanilla:server') { transitive = false }
+    testImplementation libs.junit4
 }
 
 test { useJUnit() }
@@ -44,11 +47,12 @@ tasks.named('remapJar') {
 }
 
 // 开发运行沿用 Meridian 统一完整装配；Framework 与 TOML 库在安装 JAR 中是嵌套库，开发时显式补齐。
-apply from: '../../Kizuna-Meridian-Mod-Framework/scripts/full-assembly.gradle'
+// Human 客户端库只在客户端测试运行时需要，按装配清单读已构建的 JAR。
+apply from: new File(kizunaWorkspace.directory('framework'), 'scripts/full-assembly.gradle')
 dependencies {
-    localRuntime 'org.tomlj:tomlj:1.1.1'
-    localRuntime 'org.antlr:antlr4-runtime:4.11.1'
-    localRuntime files('../../Kizuna-Meridian-Human-Addon/client/build/libs/kizuna-meridian-human-addon-client-0.1.0-SNAPSHOT.jar')
+    localRuntime libs.tomlj
+    localRuntime libs.antlr.runtime
+    localRuntime files(kizunaWorkspace.artifact('human', 'client', false))
 }
 
 loom {
@@ -74,7 +78,7 @@ sourceSets {
 
 dependencies {
     // GameTest 直接读取 Damage 观察事件与 Framework 快照。
-    gametestCompileOnly files(sibling('damageServer'))
+    gametestCompileOnly('dev.kizuna.meridian.vanilla:server') { transitive = false }
     gametestRuntimeOnly project(':server')
 }
 
