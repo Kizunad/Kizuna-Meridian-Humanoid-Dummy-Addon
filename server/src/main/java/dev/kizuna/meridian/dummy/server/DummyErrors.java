@@ -12,7 +12,6 @@ public final class DummyErrors {
     public static final String REPORT_LIST = "击打报告条目过多";
     public static final String REPORT_CHANGE = "击打报告部位状态无效";
     public static final String HIT_PART = "命中目标不属于身体构型中的任何部位";
-    public static final String REALM = "未知的训练假人档位";
 
     private DummyErrors() {
         // 只保存常量。

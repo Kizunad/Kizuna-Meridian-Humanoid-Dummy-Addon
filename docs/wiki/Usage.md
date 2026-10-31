@@ -13,24 +13,21 @@
 
 ## 命令
 
-根命令 `/meridian_humanoid_dummy`，需要权限等级 2，所有参数都可 Tab 补全。
+本模组在 `/meridian humanoid` 下登记换档命令 `realm`；生成假人用 Threatening 登记的 `spawn`，物种写
+`meridian_humanoid_dummy:dummy`。写法、权限与补全见
+[Framework 指令页](https://github.com/Kizunad/Kizuna-Meridian-Mod-Framework/wiki/Commands#humanoid)。
 
-| 命令 | 作用 |
-| --- | --- |
-| `spawn [mortal\|wandering\|true]` | 在执行位置生成一个假人，缺省档位取物种表 `default_tier`。反馈「已生成训练假人（档位）：UUID」。 |
-| `clear [radius]` | 清除执行位置球形半径内的全部假人；半径 1–256，缺省 16。 |
-| `reset <targets>` | 把选中假人的部位、组织与器官回满到出生上限。 |
-| `realm <targets> <mortal\|wandering\|true>` | 在原位置、原朝向按新档位重新生成，保留自定义名称，旧假人移除。 |
-
-`targets` 是原版实体选择器，选中的非假人实体被忽略；一个假人都没选中时命令失败。
+- 生成：省略档位时取物种表 `default_tier`（游炁），假人面朝命令源。反馈「已生成训练假人（档位）：UUID」。
+- 换档：在原位置、原朝向按新档位重新生成，保留自定义名称，旧假人移除。选中的非假人实体被忽略；一个假人都没选中时命令失败。
+- 清除：用原版 `/kill @e[type=meridian_humanoid_dummy:dummy,distance=..16]`；假人被 `/kill` 直接移除，不走伤害结算。
 
 ## 档位
 
 | 参数 | 显示名 | 身体 |
 | --- | --- | --- |
 | `mortal` | 凡人 | 游炁境界，经脉全部未开 |
-| `wandering` | 游炁 | 游炁境界，按物种画像开辟经脉 |
-| `true` | 真炁 | 真炁境界 |
+| `wandering_qi` | 游炁 | 游炁境界，按物种画像开辟经脉 |
+| `true_qi` | 真炁 | 真炁境界 |
 
 ## 击打 HUD
 

@@ -19,8 +19,6 @@ git diff --check
   命中部位解析优先蔓延源，其次第一条扣除目标；结构外命中被拒绝；编码往返；长度、版本、未知字段与越界数值被拒绝；
   超长名称与极端剂量在构建时截断；扣除不足 0.005 的组织不进清单，校验也拒收这样的条目。
 - `HitAmountsTest`：扣减与剂量不小于 0.1 保留一位小数，更小的保留两位；0.005 是列出门槛。
-- `DummyResetPlanTest`：治疗全部受损模块并清除疲劳；满血身体不生成命令；大结构按 Framework 单次目标上限拆分；
-  档位参数映射到 Threatening 档位。
 
 ## GameTest（`fabric/src/gametest`）
 
@@ -28,13 +26,13 @@ git diff --check
 | --- | --- |
 | `itemPlacesDefaultTierDummyFacingThePlacer` | 物品右键放置恰好一个假人并消耗一份，面朝放置者，档位为游炁，身体是 Human 成人构型，类人大脑不接管 |
 | `creativeGroupHoldsOnlyTheDummy` | 独立创造栏只有假人物品 |
-| `swordHitOnLeftArmSendsOneMatchingReport` | 铁剑命中左上臂恰好产生一条报告：部位左上臂、类型切割、护甲前与护甲后剂量等于 Damage 观察到的输入，受伤清单里没有不足 0.005 的扣减 |
+| `swordHitOnLeftArmSendsOneMatchingReport` | 每个种子换一个新出生的假人，铁剑命中左上臂恰好产生一条报告：部位左上臂、类型切割、护甲前与护甲后剂量等于 Damage 观察到的输入，受伤清单里没有不足 0.005 的扣减 |
 | `dummyBelowHumanDeathLineStaysAlive` | 连续重击使部位归零、总 HP 低于人体死亡线，20 tick 后假人仍存活、未移除、原版生命值为正 |
-| `resetCommandRestoresTheFullBody` | 重击后 `reset <uuid>` 使部位、组织、器官全部回到上限 |
 | `sneakingEmptyHandPicksTheDummyUp` | 潜行空手右键移除假人并得到一个物品 |
-| `clearRemovesOnlyDummiesInsideTheRadius` | `clear 2` 清除半径内的两个，保留半径外的一个 |
-| `mortalSpawnHasNoOpenedMeridianAndRealmCommandRebirths` | `spawn mortal` 生成凡人档且无已开经脉；`realm <uuid> true` 在原位置换成真炁档 |
-| `commandsCompleteAndRequirePermissionTwo` | 子命令、档位与半径补全；权限 1 不能执行；未知档位被拒绝 |
+| `vanillaKillRemovesOnlyDummiesInsideTheRadius` | 原版 `kill @e[type=meridian_humanoid_dummy:dummy,distance=..2]` 移除半径内的两个，保留半径外的一个 |
+| `mortalSpawnHasNoOpenedMeridianAndRealmCommandRebirths` | `/meridian humanoid spawn meridian_humanoid_dummy:dummy mortal` 生成凡人档且无已开经脉；`/meridian humanoid realm <uuid> true_qi` 在原位置换成真炁档 |
+| `spawnCommandPlacesDefaultTierDummyFacingTheSource` | 命令源朝向 90° 时 `/meridian humanoid spawn meridian_humanoid_dummy:dummy` 生成的假人面朝命令源，档位为物种表默认的游炁，类人大脑不接管 |
+| `realmCommandCompletesAndRequiresPermissionTwo` | `/meridian humanoid` 下补全到 `realm`，`spawn` 物种补全含假人；档位补全为 `mortal`、`wandering_qi`、`true_qi`；权限 1 看不到 `realm` 也不能换档；未知档位与非假人目标被拒绝；旧根 `/meridian_humanoid_dummy` 不存在 |
 
 ## Xvfb 客户端测试（`fabric/src/clientTest`）
 
@@ -61,3 +59,18 @@ git diff --check
   ```
 - 依赖的是 Threatening 工作区中尚未提交的物种注册点与 Damage 工作区中尚未提交的观察事件；两仓提交前，
   本仓库只能对着它们当前的构建产物编译和测试。
+
+## 2026-10-31：S2 指令整理
+
+旧根 `/meridian_humanoid_dummy` 按 Framework 指令对照表删除：`spawn` 并入 Threatening 的 `/meridian humanoid spawn`（假人经放置钩子面朝命令源），
+`clear` 改用原版 `/kill`，`reset` 删除，`realm` 挂到 `/meridian humanoid realm`，档位词表改为 `mortal`、`wandering_qi`、`true_qi`。
+`DummyResetPlan`、档位名 `DummyRealm` 与 `DummyResetPlanTest`（4 项）随之删除，JUnit 15 → 11。
+`swordHitOnLeftArmSendsOneMatchingReport` 原先每个种子前用 `reset` 回满同一个假人，现在每个种子换一个新出生的假人。
+`resetCommandRestoresTheFullBody` 删除；替代写法 `/meridian body heal` 由 Debug 登记，Debug 落地后再补回满用例。
+
+命令：先在 Framework、Human、Threatening 执行 `./gradlew assemble`（三仓均为最新），删除 `.gradle/loom-cache/remapped_mods` 后
+`./gradlew test build :fabric:runGametest`；`ALSOFT_DRIVERS=null xvfb-run -a -s "-screen 0 1280x960x24" ./gradlew :fabric:runClientTest`；
+`python3 scripts/check_docs.py`；`git diff --check`。
+
+结果：JUnit 11/11（`HitReportsTest` 9、`HitAmountsTest` 2）；GameTest 9/9，加载 68 个模组；
+clientTest `success=true`，加载 87 个模组，命中左小腿，HUD 3 行；文档检查通过（6 个页面）。

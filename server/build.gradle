@@ -1,13 +1,11 @@
-description = '训练假人击打报告、重置计划与档位的纯 Java 规则。'
+description = '训练假人击打报告的纯 Java 规则。'
 
 dependencies {
     api project(':shared')
-    // Framework 快照与 Threatening 档位由必装宿主在运行时提供，这里只编译引用。
-    // 两者在 settings 中以源码组合，与原先读单个 JAR 一致只取模块本身。
+    // Framework 快照由必装宿主在运行时提供，这里只编译引用。
+    // Framework 在 settings 中以源码组合，与原先读单个 JAR 一致只取模块本身。
     compileOnly('local.meridian:server') { transitive = false }
-    compileOnly('dev.kizuna.meridian.humanoid:server') { transitive = false }
     testImplementation('local.meridian:server') { transitive = false }
-    testImplementation('dev.kizuna.meridian.humanoid:server') { transitive = false }
     testImplementation libs.junit4
 }
 

@@ -9,12 +9,8 @@ import dev.kizuna.meridian.humanoid.server.HumanoidTier;
 import dev.kizuna.meridian.protocol.pb.BodyMessages.BodySnapshot;
 import dev.kizuna.meridian.protocol.pb.BodyMessages.MeridianOpeningStage;
 import dev.kizuna.meridian.protocol.pb.BodyMessages.MeridianState;
-import dev.kizuna.meridian.protocol.pb.BodyMessages.OrganDefinition;
-import dev.kizuna.meridian.protocol.pb.BodyMessages.OrganState;
 import dev.kizuna.meridian.protocol.pb.BodyMessages.PartDefinition;
 import dev.kizuna.meridian.protocol.pb.BodyMessages.PartState;
-import dev.kizuna.meridian.protocol.pb.BodyMessages.TissueDefinition;
-import dev.kizuna.meridian.protocol.pb.BodyMessages.TissueState;
 import dev.kizuna.meridian.vanilla.fabric.VanillaDamageFabric;
 import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
@@ -32,6 +28,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
@@ -41,6 +39,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.RandomSupport;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,7 +51,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
-/** 放置与朝向、左臂命中报告、归零不死、重置、潜行收回、范围清除、凡人档与换档的宿主回归。 */
+/** 放置与朝向、左臂命中报告、归零不死、潜行收回、原版 kill 清除、humanoid spawn 放置钩子、凡人档与换档的宿主回归。 */
 public final class DummyGameTest implements FabricGameTest {
     private static final int FLOOR_Y = 1;
     private static final int STAND_Y = 2;
@@ -71,13 +70,12 @@ public final class DummyGameTest implements FabricGameTest {
     private static final int CLEAR_RADIUS = 2;
     private static final int NEAR_DUMMIES = 2;
     private static final double REBIRTH_SEARCH = 1.0;
-    private static final double ABSENT_HP = 0.0;
     private static final Vec3 NEAR_EAST = new Vec3(1, 0, 0);
     private static final Vec3 NEAR_NORTH = new Vec3(0, 0, -1);
     private static final Vec3 FAR = new Vec3(3, 0, 3);
     private static final String LEFT_UPPER_ARM = "left_upper_arm";
     private static final String LEFT_UPPER_ARM_NAME = "左上臂";
-    private static final String COMMAND = DummyFabric.MOD_ID + " ";
+    private static final String COMMAND = "meridian humanoid ";
     private static final Map<UUID, List<HitReport>> REPORTS = new ConcurrentHashMap<>();
     private static final Map<UUID, VanillaDamageFabric.DamageInput> INPUTS = new ConcurrentHashMap<>();
 
@@ -131,31 +129,27 @@ public final class DummyGameTest implements FabricGameTest {
 
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
     public void swordHitOnLeftArmSendsOneMatchingReport(GameTestHelper context) {
-        // 命中部位由 Damage 按目标随机流抽取；逐个种子尝试，直到剑击落在左上臂。
+        // 命中部位由 Damage 按目标随机流抽取；每个种子换一个新出生的满血假人，直到剑击落在左上臂。
         // 相邻小种子的首个随机数几乎相同，先经原版种子混洗再设入，否则每次都抽到同一部位。
-        DummyEntity dummy = place(context, HumanoidTier.WANDERING_QI);
         ServerPlayer attacker = attacker(context);
         attacker.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
-        try {
-            for (int seed = 0; seed < HIT_ATTEMPTS; seed++) {
-                DummyBodyAccess.reset(dummy);
-                int before = reports(dummy).size();
-                INPUTS.remove(dummy.getUUID());
+        for (int seed = 0; seed < HIT_ATTEMPTS; seed++) {
+            DummyEntity dummy = place(context, HumanoidTier.WANDERING_QI);
+            try {
                 dummy.getRandom().setSeed(RandomSupport.mixStafford13(seed));
-                dummy.invulnerableTime = 0;
                 attacker.attack(dummy);
                 VanillaDamageFabric.DamageInput input = INPUTS.get(dummy.getUUID());
                 if (input == null || input.hit().isEmpty() || !input.hit().get().getPartId().equals(LEFT_UPPER_ARM)) {
                     continue;
                 }
                 List<HitReport> reports = reports(dummy);
-                context.assertTrue(reports.size() == before + 1, "左臂一击没有恰好产生一条报告");
-                assertLeftArmReport(context, reports.get(reports.size() - 1), input);
+                context.assertTrue(reports.size() == 1, "左臂一击没有恰好产生一条报告");
+                assertLeftArmReport(context, reports.get(0), input);
                 context.succeed();
                 return;
+            } finally {
+                dummy.discard();
             }
-        } finally {
-            dummy.discard();
         }
         throw new AssertionError(HIT_ATTEMPTS + " 次剑击都没有落在左上臂");
     }
@@ -194,22 +188,6 @@ public final class DummyGameTest implements FabricGameTest {
     }
 
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
-    public void resetCommandRestoresTheFullBody(GameTestHelper context) {
-        DummyEntity dummy = place(context, HumanoidTier.WANDERING_QI);
-        try {
-            dummy.invulnerableTime = 0;
-            dummy.hurt(context.getLevel().damageSources().playerAttack(attacker(context)), HEAVY_DOSE);
-            context.assertTrue(!full(DummyBodyAccess.inspect(dummy)), "重击没有改变身体");
-            int reset = execute(source(context), "reset " + dummy.getStringUUID());
-            context.assertTrue(reset == 1, "reset 命令没有处理这一个假人");
-            context.assertTrue(full(DummyBodyAccess.inspect(dummy)), "重置后部位、组织或器官没有回满");
-        } finally {
-            dummy.discard();
-        }
-        context.succeed();
-    }
-
-    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
     public void sneakingEmptyHandPicksTheDummyUp(GameTestHelper context) {
         DummyEntity dummy = place(context, HumanoidTier.WANDERING_QI);
         ServerPlayer player = attacker(context);
@@ -223,7 +201,8 @@ public final class DummyGameTest implements FabricGameTest {
     }
 
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
-    public void clearRemovesOnlyDummiesInsideTheRadius(GameTestHelper context) {
+    public void vanillaKillRemovesOnlyDummiesInsideTheRadius(GameTestHelper context) {
+        // 旧的范围清除命令由原版 kill 加实体类型与距离选择器取代；假人的 kill 直接移除。
         CommandSourceStack source = source(context);
         ServerLevel world = context.getLevel();
         Vec3 center = source.getPosition();
@@ -231,7 +210,8 @@ public final class DummyGameTest implements FabricGameTest {
         DummyEntity east = DummySpawner.place(world, center.add(NEAR_EAST), SOUTH_YAW, tier);
         DummyEntity north = DummySpawner.place(world, center.add(NEAR_NORTH), SOUTH_YAW, tier);
         DummyEntity far = DummySpawner.place(world, center.add(FAR), SOUTH_YAW, tier);
-        int cleared = execute(source, "clear " + CLEAR_RADIUS);
+        String kill = "kill @e[type=" + DummyContent.ENTITY_ID + ",distance=.." + CLEAR_RADIUS + "]";
+        int cleared = source.getServer().getCommands().performPrefixedCommand(source, kill);
         boolean farKept = !far.isRemoved();
         far.discard();
         boolean nearRemoved = east.isRemoved() && north.isRemoved();
@@ -242,15 +222,13 @@ public final class DummyGameTest implements FabricGameTest {
 
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
     public void mortalSpawnHasNoOpenedMeridianAndRealmCommandRebirths(GameTestHelper context) {
-        // 凡人档从正式命令生成；换档在原位置按真炁重新出生，旧假人移除。
+        // 凡人档从 Threatening 的 humanoid spawn 生成；换档在原位置按真炁重新出生，旧假人移除。
         ServerLevel world = context.getLevel();
         RecordedOutput output = new RecordedOutput();
         CommandSourceStack source = source(context).withSource(output);
-        context.assertTrue(execute(source, "spawn mortal") == 1, "spawn mortal 失败");
-        String feedback = output.messages.get(output.messages.size() - 1);
-        UUID id = UUID.fromString(feedback.substring(feedback.lastIndexOf('：') + 1));
-        DummyEntity mortal = (DummyEntity) world.getEntity(id);
-        context.assertTrue(mortal != null, "spawn 反馈的 UUID 找不到假人");
+        context.assertTrue(execute(source, "spawn " + DummyContent.ENTITY_ID + " mortal") == 1, "spawn 凡人假人失败");
+        DummyEntity mortal = spawned(context, output);
+        UUID id = mortal.getUUID();
         BodySnapshot body = DummyBodyAccess.inspect(mortal);
         context.assertTrue(HumanoidTier.of(body) == HumanoidTier.MORTAL, "凡人档身体档位错误");
         boolean anyOpened = body.getMeridianStatesList().stream()
@@ -258,7 +236,7 @@ public final class DummyGameTest implements FabricGameTest {
                 .anyMatch(opening -> opening.getStage() == MeridianOpeningStage.OPENED);
         context.assertTrue(!anyOpened, "凡人档身体有已开经脉");
         Vec3 position = mortal.position();
-        int replacedCount = execute(source, "realm " + id + " true");
+        int replacedCount = execute(source, DummyCommands.NODE + " " + id + " " + HumanoidTier.TRUE_QI.id());
         context.assertTrue(replacedCount == 1 && mortal.isRemoved(), "realm 命令没有替换假人");
         List<DummyEntity> replaced = world.getEntitiesOfClass(DummyEntity.class,
                 AABB.ofSize(position, REBIRTH_SEARCH, REBIRTH_SEARCH, REBIRTH_SEARCH), dummy -> !dummy.isRemoved());
@@ -271,18 +249,64 @@ public final class DummyGameTest implements FabricGameTest {
     }
 
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
-    public void commandsCompleteAndRequirePermissionTwo(GameTestHelper context) {
-        CommandSourceStack source = source(context);
-        Set<String> verbs = suggestions(source, COMMAND);
-        context.assertTrue(verbs.equals(Set.of("spawn", "clear", "reset", "realm")), "子命令补全错误：" + verbs);
-        Set<String> realms = suggestions(source, COMMAND + "spawn ");
-        context.assertTrue(realms.equals(Set.of("mortal", "wandering", "true")), "档位补全错误：" + realms);
-        context.assertTrue(suggestions(source, COMMAND + "clear ").contains("16"), "半径补全缺少 16");
+    public void spawnCommandPlacesDefaultTierDummyFacingTheSource(GameTestHelper context) {
+        // 省略档位时 Threatening 取物种表默认档位游炁；登记的放置钩子让假人面朝命令源，而不是通用路径的固定朝向。
         RecordedOutput output = new RecordedOutput();
-        CommandSourceStack lowered = source.withSource(output).withPermission(PERMISSION_LEVEL - 1);
-        context.assertTrue(execute(lowered, "spawn") == 0 && !output.messages.isEmpty(), "低权限仍能执行假人命令");
-        context.assertTrue(execute(source.withSource(output), "spawn immortal") == 0, "未知档位没有被拒绝");
+        CommandSourceStack source = source(context).withSource(output).withRotation(new Vec2(0.0F, PLACER_YAW));
+        context.assertTrue(execute(source, "spawn " + DummyContent.ENTITY_ID) == 1, "spawn 假人失败");
+        DummyEntity dummy = spawned(context, output);
+        try {
+            float facing = Mth.wrapDegrees(dummy.getYRot() - FACING_PLACER_YAW);
+            context.assertTrue(Math.abs(facing) < TOLERANCE, "命令生成的假人没有面朝命令源");
+            context.assertTrue(HumanoidTier.of(DummyBodyAccess.inspect(dummy)) == HumanoidTier.WANDERING_QI,
+                    "省略档位时不是物种表默认的游炁");
+            context.assertTrue(!HumanoidBrain.managed(dummy), "类人大脑接管了命令生成的假人");
+        } finally {
+            dummy.discard();
+        }
         context.succeed();
+    }
+
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
+    public void realmCommandCompletesAndRequiresPermissionTwo(GameTestHelper context) {
+        // realm 挂在 humanoid 下，档位词表与 spawn 相同；权限不足看不到也执行不了，非假人目标与未知档位被拒绝。
+        CommandSourceStack source = source(context);
+        RecordedOutput output = new RecordedOutput();
+        DummyEntity dummy = place(context, HumanoidTier.WANDERING_QI);
+        Cow cow = context.spawn(EntityType.COW, new BlockPos(CENTER, STAND_Y, CENTER));
+        String realm = DummyCommands.NODE + " ";
+        try {
+            Set<String> nodes = suggestions(source, COMMAND);
+            context.assertTrue(nodes.contains(DummyCommands.NODE), "humanoid 下缺少 realm：" + nodes);
+            Set<String> species = suggestions(source, COMMAND + "spawn ");
+            context.assertTrue(species.contains(DummyContent.ENTITY_ID), "spawn 物种补全缺少假人：" + species);
+            Set<String> realms = suggestions(source, COMMAND + realm + dummy.getStringUUID() + " ");
+            context.assertTrue(realms.equals(Set.of("mortal", "wandering_qi", "true_qi")), "档位补全错误：" + realms);
+            CommandSourceStack lowered = source.withSource(output).withPermission(PERMISSION_LEVEL - 1);
+            context.assertTrue(!suggestions(lowered, COMMAND).contains(DummyCommands.NODE), "低权限仍能看到 realm");
+            int loweredResult = execute(lowered, realm + dummy.getStringUUID() + " true_qi");
+            context.assertTrue(loweredResult == 0 && !dummy.isRemoved(), "低权限仍能换档");
+            int unknown = execute(source.withSource(output), realm + dummy.getStringUUID() + " immortal");
+            context.assertTrue(unknown == 0 && !dummy.isRemoved(), "未知档位没有被拒绝");
+            int notDummy = execute(source.withSource(output), realm + cow.getStringUUID() + " true_qi");
+            context.assertTrue(notDummy == 0 && !cow.isRemoved(), "非假人目标没有被拒绝");
+            var root = source.getServer().getCommands().getDispatcher().getRoot();
+            context.assertTrue(root.getChild(DummyFabric.MOD_ID) == null, "旧根 /" + DummyFabric.MOD_ID + " 应已删除");
+        } finally {
+            dummy.discard();
+            cow.discard();
+        }
+        context.succeed();
+    }
+
+    private static DummyEntity spawned(GameTestHelper context, RecordedOutput output) {
+        // humanoid spawn 的反馈以「：UUID」结尾；按 UUID 找回刚生成的假人。
+        String feedback = output.messages.get(output.messages.size() - 1);
+        UUID id = UUID.fromString(feedback.substring(feedback.lastIndexOf('：') + 1));
+        if (!(context.getLevel().getEntity(id) instanceof DummyEntity dummy)) {
+            throw new AssertionError("spawn 反馈的 UUID 找不到假人：" + feedback);
+        }
+        return dummy;
     }
 
     private static DummyEntity place(GameTestHelper context, HumanoidTier tier) {
@@ -335,32 +359,6 @@ public final class DummyGameTest implements FabricGameTest {
         double remaining = body.getPartStatesList().stream().mapToDouble(PartState::getHp).sum();
         double maximum = body.getStructure().getPartsList().stream().mapToDouble(PartDefinition::getMaxHp).sum();
         return remaining / maximum;
-    }
-
-    private static boolean full(BodySnapshot body) {
-        // 部位、组织、器官逐个对照上限。
-        Map<String, Double> maxima = new HashMap<>();
-        for (PartDefinition part : body.getStructure().getPartsList()) {
-            maxima.put("part:" + part.getId(), part.getMaxHp());
-        }
-        for (TissueDefinition tissue : body.getStructure().getTissuesList()) {
-            maxima.put("tissue:" + tissue.getId(), tissue.getMaxHp());
-        }
-        for (OrganDefinition organ : body.getStructure().getOrgansList()) {
-            maxima.put("organ:" + organ.getId(), organ.getMaxHp());
-        }
-        Map<String, Double> current = new HashMap<>();
-        for (PartState state : body.getPartStatesList()) {
-            current.put("part:" + state.getId(), state.getHp());
-        }
-        for (TissueState state : body.getTissueStatesList()) {
-            current.put("tissue:" + state.getId(), state.getHp());
-        }
-        for (OrganState state : body.getOrganStatesList()) {
-            current.put("organ:" + state.getId(), state.getHp());
-        }
-        return maxima.entrySet().stream().allMatch(
-                entry -> Math.abs(current.getOrDefault(entry.getKey(), ABSENT_HP) - entry.getValue()) < TOLERANCE);
     }
 
     private static final class RecordedOutput implements CommandSource {
