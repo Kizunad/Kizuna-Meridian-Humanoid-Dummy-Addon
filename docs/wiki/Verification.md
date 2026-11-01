@@ -12,7 +12,9 @@ python3 scripts/check_docs.py
 git diff --check
 ```
 
-`runClientTest` 复用 GameTest 生成的平坦世界（`build/gametest/world` 复制为单人存档 `dummy-hud-test`），
+`runGametest` 每局先删掉 `build/gametest/world`，由 GameTest 服务端按自带的平坦预设新建世界。
+`runClientTest` 复用这个世界的全局设置：每次只把 `level.dat` 与 `data/minecraft/`（26.2 的平坦生成设置、游戏规则、天气与时钟
+都在这里）同步为单人存档 `dummy-hud-test`，区块重新生成，上一局的玩家位置与假人都不会带进截图；
 截图写到 `fabric/build/hud-screens/`，结论写到 `fabric/build/clienttest-results.txt`，首行不是 `success=true` 时任务失败。
 
 ## JUnit（`server/`）
