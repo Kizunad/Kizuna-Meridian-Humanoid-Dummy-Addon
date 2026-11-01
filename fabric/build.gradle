@@ -130,8 +130,9 @@ tasks.named('runClientTest') {
     doFirst {
         report.get().asFile.text = 'success=false\n'
         // 以简体中文启动，HUD 文案与 Human 的中文部位名同一语言；4903 是 26.2 的数据版本，免得选项走升级。
+        // 26.2 首次启动先弹无障碍引导，挡住 quickPlay 进不了世界，所以每次都标记为已引导。
         options.get().asFile.parentFile.mkdirs()
-        options.get().asFile.text = 'version:4903\nlang:zh_cn\n'
+        options.get().asFile.text = 'version:4903\nlang:zh_cn\nonboardAccessibility:false\n'
     }
     doLast {
         if (!report.get().asFile.text.startsWith('success=true')) {
