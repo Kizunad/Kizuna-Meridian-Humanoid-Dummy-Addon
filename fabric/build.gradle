@@ -102,7 +102,7 @@ loom {
 afterEvaluate {
     tasks.named('runGametest') {
         doFirst {
-            // 平坦世界供客户端测试复用，固定端口与视距避免占用用户环境。
+            // GameTest 服务端按自带的平坦预设建世界（不读 level-type），客户端测试复用这份世界；固定端口与视距避免占用用户环境。
             def runDirectory = file('build/gametest')
             runDirectory.mkdirs()
             // 每局从空目录新建世界：GameTest 服务端按自带的平坦预设建世界，旧目录只会累积上一局的区块、实体、假玩家与模组存档。
@@ -112,7 +112,6 @@ afterEvaluate {
             new File(runDirectory, 'server.properties').text = '''online-mode=false
 server-ip=127.0.0.1
 server-port=0
-level-type=flat
 generate-structures=false
 view-distance=2
 simulation-distance=2
