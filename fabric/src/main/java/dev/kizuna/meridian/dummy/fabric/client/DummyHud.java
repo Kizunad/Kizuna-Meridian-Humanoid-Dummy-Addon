@@ -44,7 +44,7 @@ final class DummyHud {
     private static final String KEY = "hud." + DummyFabric.MOD_ID + ".";
     /** 伤害类型名引用 Damage 的公开键，本模组不另写一份。 */
     private static final String DAMAGE_KIND_KEY = "damage_kind.meridian.";
-    private final Deque<HitReport> entries = new ArrayDeque<>();
+    private final Deque<List<HudLine>> entries = new ArrayDeque<>();
     private long lastHitMillis;
 
     void push(HitReport report, long now) {
@@ -52,7 +52,8 @@ final class DummyHud {
         if (blocks(now).isEmpty()) {
             entries.clear();
         }
-        entries.addFirst(report);
+        // 报告到达时把各行文字建好，之后四秒里每帧只换透明度。
+        entries.addFirst(List.copyOf(lines(report)));
         while (entries.size() > MAX_ENTRIES) {
             entries.removeLast();
         }
@@ -71,8 +72,8 @@ final class DummyHud {
         float fade = fade(age);
         List<HudBlock> blocks = new ArrayList<>();
         int index = 0;
-        for (HitReport report : entries) {
-            blocks.add(new HudBlock(lines(report), ENTRY_OPACITY[index] * fade));
+        for (List<HudLine> lines : entries) {
+            blocks.add(new HudBlock(lines, ENTRY_OPACITY[index] * fade));
             index++;
         }
         return blocks;
