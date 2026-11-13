@@ -11,12 +11,17 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.locale.Language;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -35,6 +40,23 @@ public final class DummyRecipeGameTest {
     private static final String ADVANCEMENT_FOLDER = "recipes/decorations/";
     private static final int ITEM_COUNT = 1;
     private static final int GRID_SIDE = 3;
+
+    @GameTest
+    public void theDummyTooltipTellsHowToPlaceRetrieveAndThatItNeverHeals(GameTestHelper context) {
+        // 物品提示四行各说一件事，每行在语言文件里都有文字。
+        ItemStack stack = new ItemStack(DummyContent.item());
+        List<Component> lines = new ArrayList<>();
+        stack.getItem().appendHoverText(stack, Item.TooltipContext.EMPTY, TooltipDisplay.DEFAULT, lines::add,
+                TooltipFlag.NORMAL);
+        List<String> keys = lines.stream()
+                .map(line -> ((TranslatableContents) line.getContents()).getKey())
+                .toList();
+        context.assertTrue(keys.equals(DummyItem.TOOLTIP_KEYS), "假人提示的行不对：" + keys);
+        for (String key : keys) {
+            context.assertTrue(Language.getInstance().has(key), "语言文件缺 " + key);
+        }
+        context.succeed();
+    }
 
     @GameTest
     public void theDummyCraftsFromVanillaMaterialsAndUnlocksOnItsMainMaterial(GameTestHelper context) {

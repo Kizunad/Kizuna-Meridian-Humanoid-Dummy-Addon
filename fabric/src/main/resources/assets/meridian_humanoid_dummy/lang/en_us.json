@@ -1,6 +1,10 @@
 {
   "entity.meridian_humanoid_dummy.dummy": "Training Dummy",
   "item.meridian_humanoid_dummy.dummy": "Training Dummy",
+  "item.meridian_humanoid_dummy.dummy.tooltip.place": "Right-click the ground to place it facing you",
+  "item.meridian_humanoid_dummy.dummy.tooltip.retrieve": "Sneak and right-click with an empty hand to pick it up",
+  "item.meridian_humanoid_dummy.dummy.tooltip.no_heal": "Its wounds never heal; pick it up and place it again for a fresh one",
+  "item.meridian_humanoid_dummy.dummy.tooltip.report": "Each hit shows the part, damage and injured tissue at the top right",
   "itemGroup.meridian_humanoid_dummy": "Training Dummy",
   "hud.meridian_humanoid_dummy.part": "%s %s/%s (−%s)",
   "hud.meridian_humanoid_dummy.part.unchanged": "%s %s/%s",

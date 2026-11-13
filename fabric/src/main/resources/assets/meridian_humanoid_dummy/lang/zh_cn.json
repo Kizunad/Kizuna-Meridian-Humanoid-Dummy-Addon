@@ -1,6 +1,10 @@
 {
   "entity.meridian_humanoid_dummy.dummy": "训练假人",
   "item.meridian_humanoid_dummy.dummy": "训练假人",
+  "item.meridian_humanoid_dummy.dummy.tooltip.place": "右键地面放下，面朝你",
+  "item.meridian_humanoid_dummy.dummy.tooltip.retrieve": "潜行、空手右键收回",
+  "item.meridian_humanoid_dummy.dummy.tooltip.no_heal": "伤不会自己好；收回再放就是一具新的",
+  "item.meridian_humanoid_dummy.dummy.tooltip.report": "打中后右上角显示部位、伤害和受伤的组织",
   "itemGroup.meridian_humanoid_dummy": "训练假人",
   "hud.meridian_humanoid_dummy.part": "%s %s/%s（−%s）",
   "hud.meridian_humanoid_dummy.part.unchanged": "%s %s/%s",

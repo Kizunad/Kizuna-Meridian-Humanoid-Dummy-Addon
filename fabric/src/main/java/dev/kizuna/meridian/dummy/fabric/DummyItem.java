@@ -1,5 +1,6 @@
 package dev.kizuna.meridian.dummy.fabric;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -9,12 +10,17 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,8 +31,24 @@ final class DummyItem extends Item {
     private static final float PLACE_VOLUME = 0.75F;
     private static final float PLACE_PITCH = 0.8F;
 
+    /** 物品提示各行的语言键：怎么放、怎么收、伤不自愈、打中后看哪里。 */
+    static final List<String> TOOLTIP_KEYS = List.of(
+            "item.meridian_humanoid_dummy.dummy.tooltip.place",
+            "item.meridian_humanoid_dummy.dummy.tooltip.retrieve",
+            "item.meridian_humanoid_dummy.dummy.tooltip.no_heal",
+            "item.meridian_humanoid_dummy.dummy.tooltip.report");
+
     DummyItem(Properties settings) {
         super(settings);
+    }
+
+    @Override
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, TooltipDisplay display,
+                                Consumer<Component> tooltip, TooltipFlag flag) {
+        // 一行一件事，灰字；文字都在语言文件里。
+        for (String key : TOOLTIP_KEYS) {
+            tooltip.accept(Component.translatable(key).withStyle(ChatFormatting.GRAY));
+        }
     }
 
     @Override
