@@ -5,7 +5,8 @@
   "name": "训练假人 GameTest",
   "environment": "*",
   "entrypoints": {
-    "fabric-gametest": ["dev.kizuna.meridian.dummy.fabric.DummyGameTest"]
+    "fabric-gametest": ["dev.kizuna.meridian.dummy.fabric.DummyGameTest",
+      "dev.kizuna.meridian.dummy.fabric.DummyRecipeGameTest"]
   },
   "depends": {
     "meridian_humanoid_dummy": "*"

@@ -30,6 +30,7 @@ git diff --check
 | --- | --- |
 | `itemPlacesDefaultTierDummyFacingThePlacer` | 物品右键放置恰好一个假人并消耗一份，面朝放置者，档位为游炁，身体是 Human 成人构型，类人大脑不接管 |
 | `creativeGroupHoldsOnlyTheDummy` | 独立创造栏只有假人物品 |
+| `DummyRecipeGameTest.theDummyCraftsFromVanillaMaterialsAndUnlocksOnItsMainMaterial` | 假人配方存在；按配方摆料时工作台选中的就是它并产出假人；`recipes/decorations/dummy` 解锁进度存在、发这份配方；新玩家背包里进了盔甲架后配方书里出现它 |
 | `swordHitOnLeftArmSendsOneMatchingReport` | 每个种子换一个新出生的假人，铁剑命中左上臂恰好产生一条报告：部位左上臂、类型切割、护甲前与护甲后剂量等于 Damage 观察到的输入，受伤清单里没有不足 0.005 的扣减 |
 | `dummyBelowHumanDeathLineStaysAlive` | 连续重击使部位归零、总 HP 低于人体死亡线，20 tick 后假人仍存活、未移除、原版生命值为正 |
 | `bodyHealRestoresTheFullBody` | 重击后 `/meridian body heal <uuid> all` 使部位、组织、器官全部回到上限 |

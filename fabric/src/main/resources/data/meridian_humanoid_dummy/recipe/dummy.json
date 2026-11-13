@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "W": "minecraft:gray_wool",
+    "H": "minecraft:hay_block",
+    "A": "minecraft:armor_stand"
+  },
+  "pattern": [
+    " W ",
+    "HAH"
+  ],
+  "result": {
+    "id": "meridian_humanoid_dummy:dummy"
+  }
+}
