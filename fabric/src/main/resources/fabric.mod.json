@@ -3,7 +3,13 @@
   "id": "meridian_humanoid_dummy",
   "version": "${version}",
   "name": "Kizuna's Meridian Humanoid Dummy",
-  "description": "带真实经脉身体的类人训练假人与击打 HUD",
+  "contact": {
+    "homepage": "https://github.com/Kizunad/Kizuna-Meridian-Humanoid-Dummy-Addon",
+    "sources": "https://github.com/Kizunad/Kizuna-Meridian-Humanoid-Dummy-Addon",
+    "issues": "https://github.com/Kizunad/Kizuna-Meridian-Humanoid-Dummy-Addon/issues"
+  },
+  "icon": "assets/meridian_humanoid_dummy/icon.png",
+  "description": "Practice strikes on a training dummy with a working meridian system and see where each hit lands.\n在带经脉身体的训练假人上练习击打，查看每一击的落点。",
   "authors": ["Kizunad"],
   "license": "PolyForm-Noncommercial-1.0.0",
   "environment": "*",
